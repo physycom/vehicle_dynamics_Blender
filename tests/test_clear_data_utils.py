@@ -36,7 +36,7 @@ drift_tolerance = 0.01
 class ClearDataUtilsTest(unittest.TestCase):
 
     def setUp(self):
-        self.df = pd.read_csv('test_fixtures/raw_inertial_data.txt', sep='\t')
+        self.df = pd.read_csv('tests/test_fixtures/raw_inertial_data.txt', sep='\t')
 
     def test_clearGyroDrift(self):
         # get initial stationary time angular speed around x-axis
