@@ -19,4 +19,8 @@ install:
   - source activate test-environment
 
 script:
+  # some debug commands
+  - echo $PYTHONPATH
+  - echo $PWD
+  - export PYTHONPATH=$PWD
   - python -m unittest discover -s tests
