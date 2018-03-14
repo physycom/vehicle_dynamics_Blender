@@ -34,7 +34,7 @@ Credits: Federico Bertani, Stefano Sinigardi, Alessandro Fabbri, Nico Curti
 import numpy as np
 from scipy import constants
 from scipy.linalg import norm
-from scipy import cross, dot, arccos
+from scipy import cross, dot, arccos, arctan, cos, sin
 import quaternion
 
 
@@ -100,9 +100,12 @@ def correct_xy_orientation(df):
     g_z_threshold = 0.01
     bad_align_proof = df[(abs(df['ax']) > threshold) & (abs(df['ay']) > threshold) & (abs(df['gz']) < g_z_threshold)]
     # get angle and rotate vectors to align to x axis
-
+    ax , ay = bad_align_proof.loc[0,['ax','ay']]
+    angle = arctan(ay/ax)
     # x_2 = cosBx_1 - sinBy_1
+    df['ax'] = cos(angle)*df['ax'] - sin(angle)*df['ay']
     # y_2 = sinBx_1 + cosBy_1
+    df['ay'] = sin(angle)*df['ax'] + cos(angle)*df['ay']
     # find if there are others times where the condition above returns
     # raise a warning/exception
     # rotate from that time above
