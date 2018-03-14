@@ -15,7 +15,7 @@ install:
   - conda info -a
 
   # Replace dep1 dep2 ... with your dependencies
-  - conda env create -q --file requirements.yml -n test-enviroment python=$TRAVIS_PYTHON_VERSION
+  - conda env create -q --file requirements.yml -n test-environment python=$TRAVIS_PYTHON_VERSION
   - source activate test-environment
 
 script:
