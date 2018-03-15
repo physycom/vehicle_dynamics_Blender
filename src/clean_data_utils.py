@@ -46,6 +46,7 @@ def converts_measurement_units(df):
     # TODO vectorize
     df[['ax', 'ay', 'az']] = df[['ax', 'ay', 'az']].apply(lambda x: x * constants.g)
     df[['gx', 'gy', 'gz']] = df[['gx', 'gy', 'gz']].apply(lambda x: np.deg2rad(x))
+    df['speed'] = df['speed'] * constants.kmh
 
 
 def normalize_timestamp(df):
