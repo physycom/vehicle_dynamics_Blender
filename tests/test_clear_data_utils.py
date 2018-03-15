@@ -84,3 +84,18 @@ class ClearDataUtilsTest(unittest.TestCase):
         assert abs(stationary_ax_mean) < threshold
         assert abs(stationary_ay_mean) < threshold
         assert abs(stationary_az_mean - 1) < threshold
+
+    def test_correct_xy_orientation(self):
+        # for avoind call self everywhere
+        df = self.df
+        reduce_disturbance(df)
+        converts_measurement_units(df)
+        normalize_timestamp(df)
+        columns = {value: position for position, value in enumerate(df.columns.values)}
+        values = correct_z_orientation(df.values, columns)
+        self.df = pd.DataFrame(columns=df.columns, data=values)
+        bad_align_proof_len_before = len(get_xy_bad_align_proof(df))
+        assert bad_align_proof_len_before>0
+        correct_xy_orientation(df)
+        bad_align_proof_len_after = len(get_xy_bad_align_proof(df))
+        assert bad_align_proof_len_after<bad_align_proof_len_before

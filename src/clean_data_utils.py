@@ -89,24 +89,37 @@ def reduce_disturbance(df):
     df.index = range(0, new_row_upper_limit)
 
 
+ax_threshold = 0.1
+g_z_threshold = 0.01
+
+
+def get_xy_bad_align_proof(df):
+    """
+    find the first time (if present) where x and y accelerations are over a threshold
+    and angular speed around z is near or equal 0
+    :param df: Pandas dataframe
+    :return: rows where condition apply
+    """
+    return df[(abs(df['ax']) > ax_threshold)
+              & (abs(df['ay']) > ax_threshold)
+              & (abs(df['gz']) < g_z_threshold)]
+
+
 def correct_xy_orientation(df):
     """ Detect bad position of sensor in the xy plane and correct reference frame
 
     :param df: Pandas dataframe
     """
-    # find the first time (if present) where x and y accelerations are over a threshold
-    # and angular speed around z is near or equal 0
-    threshold = 0.1
-    g_z_threshold = 0.01
-    bad_align_proof = df[(abs(df['ax']) > threshold) & (abs(df['ay']) > threshold) & (abs(df['gz']) < g_z_threshold)]
-    # get angle and rotate vectors to align to x axis
-    ax , ay = bad_align_proof.loc[0,['ax','ay']]
-    angle = arctan(ay/ax)
-    # x_2 = cosBx_1 - sinBy_1
-    df['ax'] = cos(angle)*df['ax'] - sin(angle)*df['ay']
-    # y_2 = sinBx_1 + cosBy_1
-    df['ay'] = sin(angle)*df['ax'] + cos(angle)*df['ay']
-    # find if there are others times where the condition above returns
+
+    bad_align_proof = get_xy_bad_align_proof(df)
+    # get first vector
+    ax, ay = bad_align_proof.values[0, 1:3]
+    # get angle and negate it to remove rotation
+    angle = -arctan(float(ay) / float(ax))
+    # rotate vector
+    df['ax'] = cos(angle) * df['ax'] - sin(angle) * df['ay']
+    df['ay'] = sin(angle) * df['ax'] + cos(angle) * df['ay']
+    # TODO find if there are others times where the condition returns
     # raise a warning/exception
     # rotate from that time above
 
