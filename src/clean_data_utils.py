@@ -58,6 +58,15 @@ def normalize_timestamp(df):
     df['timestamp'] = df['timestamp'].apply(lambda x: x - motion_start)
 
 
+def sign_inversion_is_necessary(df):
+    """
+    Assumes that speed has been converted to m/s
+    :param df: Pandas dataframe
+    """
+    speed_threshold = 6
+    return any(df['speed'] > speed_threshold)
+
+
 def clear_gyro_drift(df):
     """ Remove gyroscope natural drift
 
