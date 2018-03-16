@@ -51,11 +51,15 @@ class ClearDataUtilsTest(unittest.TestCase):
         assert abs(initial_stationary_time_gx_value) < drift_tolerance
 
     def test_converts_measurement_units(self):
-        df = pd.DataFrame.from_dict({'ax': [1], 'ay': [1], 'az': [1], 'gx': [180], 'gy': [180], 'gz': [180]})
+        df = pd.DataFrame.from_dict(
+            {'ax': [1], 'ay': [1], 'az': [1],
+             'gx': [180], 'gy': [180], 'gz': [180],
+             'speed':[1]})
         converts_measurement_units(df)
-        from scipy.constants import g, pi
+        from scipy.constants import g, pi, kmh
         assert df.at[0, 'ax'] == g
         assert df.at[0, 'gx'] == pi
+        assert df.at[0,'speed'] == kmh
 
     def test_normalize_timestamp(self):
         assert self.df.at[0, 'timestamp'] != 0
