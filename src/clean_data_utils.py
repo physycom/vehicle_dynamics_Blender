@@ -37,116 +37,163 @@ from scipy.linalg import norm
 from scipy import cross, dot, arccos, arctan, cos, sin
 import quaternion
 
+from tests.test_fixtures import car_initial_stationary_time
 
-def converts_measurement_units(df):
-    """ Convert accelerations from g units to m/s^2 and angular velocities from degrees/s to radians/s
+
+def parse_input(df):
+    """ Transform single dataframe to multiple numpy array each representing different physic quantity
 
     :param df: Pandas dataframe
+    :return: 4 numpy array: 1xn timestamp, 1xn gps speed,
+    3xn accelerations and 3xn angular velocities
     """
-    # TODO vectorize
-    df[['ax', 'ay', 'az']] = df[['ax', 'ay', 'az']].apply(lambda x: x * constants.g)
-    df[['gx', 'gy', 'gz']] = df[['gx', 'gy', 'gz']].apply(lambda x: np.deg2rad(x))
-    df['speed'] = df['speed'] * constants.kmh
+    accelerations = df[['ax', 'ay', 'az']].values.T
+    angular_velocities = df[['gx', 'gy', 'gz']].values.T
+    times = df['timestamp'].values.T
+    gps_speed = df['speed'].values.T
+    return times, gps_speed, accelerations, angular_velocities
 
 
-def normalize_timestamp(df):
+def converts_measurement_units(gps_speed, accelerations, angular_velocities):
+    """ Convert physics quantity measurement unit
+
+    Convert accelerations from g units to m/s^2
+    angular velocities from degrees/s to radians/s
+    gps speed from km/h to m/s
+
+    Applies inplace
+
+    :param gps_speed: 1xn array of gps speed in km/h
+    :param accelerations: 3xn array of acceleration in g unit
+    :param angular_velocities: 3xn array of angular velocities in degrees/s
+    """
+    accelerations *= constants.g
+    # multiply to degree to radians constant
+    angular_velocities *= constants.degree
+    # multiply to km/h to m/s constant
+    gps_speed *= constants.kmh
+
+
+def normalize_timestamp(times):
     """ Normalize timestamp to make it begin from time 0
 
-    :param df: Pandas dataframe
+    :param times: 1xn numpy array of timestamps
     """
-    motion_start = df.iloc[0, 0]
-    # TODO vectorize
-    df['timestamp'] = df['timestamp'].apply(lambda x: x - motion_start)
+    times -= times[0]
 
 
-def sign_inversion_is_necessary(df):
+def sign_inversion_is_necessary(velocities):
+    """ Check if sign of input vector must be inverted by manufacture convention
+
+    This function assumes that speed has been converted to m/s
+
+    :param velocities: 3xn numpy array of velocities
     """
-    Assumes that speed has been converted to m/s
-    :param df: Pandas dataframe
-    """
-    speed_threshold = 6
-    return any(df['speed'] > speed_threshold)
+    speed_threshold = -4
+    return any(velocities[0] < speed_threshold)
 
 
-def clear_gyro_drift(df):
+def clear_gyro_drift(angular_velocities):
     """ Remove gyroscope natural drift
 
-    This function assumes the car is stationary in the first 40 seconds
+    This function assumes the car is stationary in the first 10000 measurements
 
-    :param df: Pandas dataframe
+    :param angular_velocities: 3xn numpy array of angular velocities
     """
-    remove_x = df.loc[0:40, 'gx'].mean()
-    remove_y = df.loc[0:40, 'gy'].mean()
-    remove_z = df.loc[0:40, 'gz'].mean()
-    df.loc[:, 'gx'] = df.loc[:, 'gx'] - remove_x
-    df.loc[:, 'gy'] = df.loc[:, 'gy'] - remove_y
-    df.loc[:, 'gz'] = df.loc[:, 'gz'] - remove_z
+    angular_velocities[0] = angular_velocities[0] - angular_velocities[0, 0:car_initial_stationary_time].mean()
+    angular_velocities[1] = angular_velocities[1] - angular_velocities[1, 0:car_initial_stationary_time].mean()
+    angular_velocities[2] = angular_velocities[2] - angular_velocities[2, 0:car_initial_stationary_time].mean()
+    return angular_velocities
 
 
-def reduce_disturbance(df):
+def reduce_disturbance(times, vector):
     """ Reduce data disturbance with a moving average
 
-    :param df: Pandas dataframe
+    The length of the window is calculated internally in function of vector length
+    Some values at the beginning of the array will be dropped.
+
+    :param times: 1xn numpy array of timestamps
+    :param vector: 3xn numpy array of whatever numeric
     """
 
     # windows dimension is 1/60 of dataframe rows count
-    window_dimension = round(df.shape[0] / 60)
-    df.loc[:, 'ax':'az'] = df.loc[:, 'ax':'az'].rolling(window=window_dimension).mean()
-    df.loc[:, 'gx':'gz'] = df.loc[:, 'gx':'gz'].rolling(window=window_dimension).mean()
-    index_to_drop = df.index[0:window_dimension]
-    new_row_upper_limit = df.shape[0] - window_dimension
-    df.drop(index=index_to_drop, inplace=True)
-    df.index = range(0, new_row_upper_limit)
+    window_dimension = round(vector.shape[1] / 60)
+    # use pandas because it has built in function of moving average
+    # performance overhead is not much
+    import pandas as pd
+    df = pd.DataFrame(vector.T)
+    # overwrite dataframe with its moving average
+    df = df.rolling(window=window_dimension).mean()
+    # now there ara 0:windows_dimension nan rows at the beginning
+    # drop these rows
+    new_vector = df[window_dimension:].values.T
+    new_times = times[window_dimension:]
+    return new_times, new_vector
 
 
-ax_threshold = 0.1
+# threshold above which acceleration along x and y axis are considered
+axy_threshold = 0.2
+# threshold above which acceleration along x and y axis are considered
 g_z_threshold = 0.01
 
 
-def get_xy_bad_align_proof(df):
+def get_xy_bad_align_proof(accelerations, angular_velocities):
     """
-    find the first time (if present) where x and y accelerations are over a threshold
+    find records (if present) where x and y accelerations are over a threshold
     and angular speed around z is near or equal 0
-    :param df: Pandas dataframe
+
+    :param accelerations: 3xn numpy array angular velocities
+    :param angular_velocities: 3xn numpy array angular velocities
     :return: rows where condition apply
     """
-    return df[(abs(df['ax']) > ax_threshold)
-              & (abs(df['ay']) > ax_threshold)
-              & (abs(df['gz']) < g_z_threshold)]
+    # boolean array of array position where x accelerations are above threshold
+    ax_over_threshold = abs(accelerations[0]) > axy_threshold
+    # boolean array of array position where y accelerations are above threshold
+    ay_over_threshold = abs(accelerations[1]) > axy_threshold
+    # boolean array of array position where z angular speed are below threshold
+    gx_below_threshold = abs(angular_velocities[2]) < g_z_threshold
+    # operate logical AND element-wise to get elements
+    return accelerations[:, ax_over_threshold & ay_over_threshold & gx_below_threshold]
 
 
-def correct_xy_orientation(df):
+def correct_xy_orientation(accelerations, angular_velocities):
     """ Detect bad position of sensor in the xy plane and correct reference frame
 
-    :param df: Pandas dataframe
+    :param accelerations: 3xn numpy array angular velocities
+    :param angular_velocities: 3xn numpy array angular velocities
     """
 
-    bad_align_proof = get_xy_bad_align_proof(df)
+    bad_align_proof = get_xy_bad_align_proof(accelerations, angular_velocities)
     # get first vector
-    ax, ay = bad_align_proof.values[0, 1:3]
+    vec = bad_align_proof[:, 0]
     # get angle and negate it to remove rotation
-    angle = -arctan(float(ay) / float(ax))
-    # rotate vector
-    df['ax'] = cos(angle) * df['ax'] - sin(angle) * df['ay']
-    df['ay'] = sin(angle) * df['ax'] + cos(angle) * df['ay']
+    rotation_angle = -arctan(vec[1] / vec[0])
+
+    def rotatexy(angle, vector):
+        # use new var instead of inplace so when we rotate y we don't use the rotated x but the old one
+        new_x = cos(angle) * vector[0] - sin(angle) * vector[1]
+        new_y = sin(angle) * vector[0] + cos(angle) * vector[1]
+        # now set new arrays
+        vector[0] = new_x
+        vector[1] = new_y
+
+    rotatexy(rotation_angle, accelerations)
     # TODO find if there are others times where the condition returns
     # raise a warning/exception
     # rotate from that time above
 
 
-def correct_z_orientation(values, columns):
+def correct_z_orientation(accelerations, angular_velocities):
     """ Use gravity vector direction to align reference frame to correct z-axis
 
-    Assumes the car is stationary for the first 40s and the gravity haven't been removed
+    Assumes the car is stationary for the first 10000 times and the gravity haven't been removed
 
-    :param values: numpy array
-    :param columns: dictionary of columns names and relative position in values parameter
-    :return: numpy array of rotated vector values
+    :param accelerations: 3xn numpy array angular velocities
+    :param angular_velocities: 3xn numpy array angular velocities
+    :return: numpy arrays: rotated accelerations, rotated angular velocities
     """
-    x_g = values[0:40, columns['ax']].mean()
-    y_g = values[0:40, columns['ay']].mean()
-    z_g = values[0:40, columns['az']].mean()
-    g = np.array((x_g, y_g, z_g))
+
+    g = accelerations[:, 0:car_initial_stationary_time].mean(axis=1)
     g_norm = norm(g)
     u = cross(g, (0, 0, 1))
     # rotation axis
@@ -154,8 +201,10 @@ def correct_z_orientation(values, columns):
     # rotate angle
     theta = arccos(dot(g, (0, 0, 1)) / g_norm)
     rotator = np.exp(quaternion.quaternion(*(theta * u_unit)) / 2)
-    # columns_index = range(columns['ax'],columns['gz']+1)
-    for x in values:
-        x[2:5] = (rotator * quaternion.quaternion(*(x[2:5])) * ~rotator).components[1:]
-        x[5:8] = (rotator * quaternion.quaternion(*(x[5:8])) * ~rotator).components[1:]
-    return values
+    rotated_accelerations = np.array(
+        [(rotator * quaternion.quaternion(*acceleration_vector) * ~rotator).components[1:]
+         for acceleration_vector in accelerations.T])
+    rotated_angular_velocities = np.array(
+        [(rotator * quaternion.quaternion(*angular_velocity) * ~rotator).components[1:]
+         for angular_velocity in angular_velocities.T])
+    return rotated_accelerations.T, rotated_angular_velocities.T

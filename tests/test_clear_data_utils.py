@@ -24,82 +24,98 @@ Credits: Federico Bertani, Stefano Sinigardi, Alessandro Fabbri, Nico Curti
 """
 
 import unittest
-
-from src.clean_data_utils import *
 import pandas as pd
+import numpy as np
 
-# number of second of
-car_initial_stationary_time = 40
+from src.clean_data_utils import reduce_disturbance, parse_input, normalize_timestamp, converts_measurement_units, \
+    correct_xy_orientation, correct_z_orientation, clear_gyro_drift, get_xy_bad_align_proof
+
+from test_fixtures import car_initial_stationary_time
+
 drift_tolerance = 0.01
 
 
 class ClearDataUtilsTest(unittest.TestCase):
 
     def setUp(self):
-        self.df = pd.read_csv('tests/test_fixtures/raw_inertial_data.txt', sep='\t')
+        df = pd.read_csv('tests/test_fixtures/raw_inertial_data.txt', sep='\t')
+        self.times, self.gps_speed, self.accelerations, self.angular_velocities = parse_input(df)
 
     def test_clearGyroDrift(self):
+        _, self.angular_velocities = reduce_disturbance(self.times, self.angular_velocities)
         # get initial stationary time angular speed around x-axis
-        initial_stationary_time_gx_value = self.df.loc[0:car_initial_stationary_time, 'gx'].mean()
+        initial_stationary_time_gx_value = self.angular_velocities[0, 0:car_initial_stationary_time].mean()
         # check there is a gyroscope drift
         assert abs(initial_stationary_time_gx_value) > drift_tolerance
         # call util to remove drift
-        clear_gyro_drift(self.df)
+        self.angular_velocities = clear_gyro_drift(self.angular_velocities)
         # re-calculate initial angular speed around x-axis
-        initial_stationary_time_gx_value = self.df.loc[0:car_initial_stationary_time, 'gx'].mean()
+        initial_stationary_time_gx_value = self.angular_velocities[0, 0:car_initial_stationary_time].mean()
         # check that the drift is lower than a tolerance
         assert abs(initial_stationary_time_gx_value) < drift_tolerance
 
     def test_converts_measurement_units(self):
-        df = pd.DataFrame.from_dict(
-            {'ax': [1], 'ay': [1], 'az': [1],
-             'gx': [180], 'gy': [180], 'gz': [180],
-             'speed':[1]})
-        converts_measurement_units(df)
+        # create temporary measures to convert
+        accelerations = np.array([[1.0], [1.0], [1.0]])
+        angular_velocities = np.array([[180.0], [180.0], [180.0]])
+        gps_speed = np.array([[1.0]])
+        converts_measurement_units(gps_speed, accelerations, angular_velocities)
+        # import scipy constants
         from scipy.constants import g, pi, kmh
-        assert df.at[0, 'ax'] == g
-        assert df.at[0, 'gx'] == pi
-        assert df.at[0,'speed'] == kmh
+        # check measurement unit conversion
+        assert all(accelerations == g)
+        assert all(angular_velocities == pi)
+        assert all(gps_speed == kmh)
 
     def test_normalize_timestamp(self):
-        assert self.df.at[0, 'timestamp'] != 0
-        normalize_timestamp(self.df)
-        assert self.df.at[0, 'timestamp'] == 0
+        # check that the first timestamp if not zero
+        assert self.times[0] != 0
+        # normalize timestamps
+        normalize_timestamp(self.times)
+        # check that now it's zero
+        assert self.times[0] == 0
 
     def test_reduce_disturbance(self):
         variance_reduction_factor = 500
         # get variance before reduction
-        variance_before = self.df['gx'].var()
+        variance_before = self.angular_velocities.var(axis=1).T[0]
         # reduce disturbance
-        reduce_disturbance(self.df)
+        _, self.angular_velocities = reduce_disturbance(self.times, self.angular_velocities)
         # check that the variance has been reduced by a factor
-        variance_after = self.df['gx'].var()
+        variance_after = self.angular_velocities.var(axis=1).T[0]
         ratio = variance_before / variance_after
         assert ratio >= variance_reduction_factor
 
     def test_correct_z_orientation(self):
         threshold = 0.1
-        columns = {value: position for position, value in enumerate(self.df.columns.values)}
-        values = correct_z_orientation(self.df.values, columns)
-        self.df = pd.DataFrame(columns=self.df.columns, data=values)
-        stationary_ax_mean = self.df.loc[0:40, 'ax'].mean()
-        stationary_ay_mean = self.df.loc[0:40, 'ay'].mean()
-        stationary_az_mean = self.df.loc[0:40, 'az'].mean()
+        self.accelerations, self.angular_velocities = correct_z_orientation(self.accelerations, self.angular_velocities)
+        # get average value in start stationary time
+        stationary_ax_mean = self.accelerations[0, 0:car_initial_stationary_time].mean()
+        stationary_ay_mean = self.accelerations[1, 0:car_initial_stationary_time].mean()
+        stationary_az_mean = self.accelerations[2, 0:car_initial_stationary_time].mean()
+        # in x and y axis it shouldn't be any acceleration
         assert abs(stationary_ax_mean) < threshold
         assert abs(stationary_ay_mean) < threshold
+        # in z axis, removed g, it shouldn't be any acceleration
         assert abs(stationary_az_mean - 1) < threshold
 
     def test_correct_xy_orientation(self):
-        # for avoind call self everywhere
-        df = self.df
-        reduce_disturbance(df)
-        converts_measurement_units(df)
-        normalize_timestamp(df)
-        columns = {value: position for position, value in enumerate(df.columns.values)}
-        values = correct_z_orientation(df.values, columns)
-        self.df = pd.DataFrame(columns=df.columns, data=values)
-        bad_align_proof_len_before = len(get_xy_bad_align_proof(df))
-        assert bad_align_proof_len_before>0
-        correct_xy_orientation(df)
-        bad_align_proof_len_after = len(get_xy_bad_align_proof(df))
-        assert bad_align_proof_len_after<bad_align_proof_len_before
+        # reduce disturbance
+        _, self.accelerations = reduce_disturbance(self.times, self.accelerations)
+        _, self.angular_velocities = reduce_disturbance(self.times, self.angular_velocities)
+        # convert measurement units
+        converts_measurement_units(self.gps_speed, self.accelerations, self.angular_velocities)
+        # clear gyroscope drift
+        self.angular_velocities = clear_gyro_drift(self.angular_velocities)
+        # align on z-axis
+        self.accelerations, self.angular_velocities = correct_z_orientation(self.accelerations, self.angular_velocities)
+        # get number of records that means that there is is a bad xy alignment
+        bad_align_proof_len_before = get_xy_bad_align_proof(self.accelerations, self.angular_velocities).shape[1]
+        # check that there is a bad alignment
+        assert bad_align_proof_len_before > 0
+        # align on xy plane
+        correct_xy_orientation(self.accelerations, self.angular_velocities)
+        # re-get number of records that means that there is is a bad xy alignment
+        bad_align_proof_len_after = get_xy_bad_align_proof(self.accelerations, self.angular_velocities).shape[1]
+        # these records should be now less than before
+        assert bad_align_proof_len_after < bad_align_proof_len_before
