@@ -105,17 +105,17 @@ class ClearDataUtilsTest(unittest.TestCase):
         _, self.angular_velocities = reduce_disturbance(self.times, self.angular_velocities)
         # convert measurement units
         converts_measurement_units(self.gps_speed, self.accelerations, self.angular_velocities)
-        # clear gyroscope drift
-        self.angular_velocities = clear_gyro_drift(self.angular_velocities)
         # align on z-axis
         self.accelerations, self.angular_velocities = correct_z_orientation(self.accelerations, self.angular_velocities)
+        # clear gyroscope drift
+        self.angular_velocities = clear_gyro_drift(self.angular_velocities)
         # get number of records that means that there is is a bad xy alignment
-        bad_align_proof_len_before = get_xy_bad_align_proof(self.accelerations, self.angular_velocities).shape[1]
+        bad_align_count_len_before = get_xy_bad_align_count(self.accelerations, self.angular_velocities)
         # check that there is a bad alignment
-        assert bad_align_proof_len_before > 0
+        assert bad_align_count_len_before > 0
         # align on xy plane
-        correct_xy_orientation(self.accelerations, self.angular_velocities)
+        self.accelerations = correct_xy_orientation(self.accelerations, self.angular_velocities)
         # re-get number of records that means that there is is a bad xy alignment
-        bad_align_proof_len_after = get_xy_bad_align_proof(self.accelerations, self.angular_velocities).shape[1]
+        bad_align_count_len_after = get_xy_bad_align_count(self.accelerations, self.angular_velocities)
         # these records should be now less than before
-        assert bad_align_proof_len_after < bad_align_proof_len_before
+        assert bad_align_count_len_after < bad_align_count_len_before

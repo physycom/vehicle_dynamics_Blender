@@ -133,11 +133,12 @@ def reduce_disturbance(times, vector):
 
 # threshold above which acceleration along x and y axis are considered
 axy_threshold = 0.2
+max_axy_threshold = 1
 # threshold above which acceleration along x and y axis are considered
 g_z_threshold = 0.01
 
 
-def get_xy_bad_align_proof(accelerations, angular_velocities):
+def get_xy_bad_align_count(accelerations, angular_velocities):
     """
     find records (if present) where x and y accelerations are over a threshold
     and angular speed around z is near or equal 0
@@ -146,14 +147,32 @@ def get_xy_bad_align_proof(accelerations, angular_velocities):
     :param angular_velocities: 3xn numpy array angular velocities
     :return: rows where condition apply
     """
+    # get all 4 +- combinations
+    x1, x2, x3, x4 = get_bad_alignment_vectors(accelerations, angular_velocities)
+    print("-------get xy bad align count-----")
+    for i,x in enumerate([x1,x2,x3,x4]):
+        print("combination {} count: {}".format(i,x.shape[1]))
+    print("sum is {}".format(sum(map(lambda x:x.shape[1],[x1,x2,x3,x4]))))
+    return sum(map(lambda x:x.shape[1],[x1,x2,x3,x4]))
+
+
+def get_bad_alignment_vectors(accelerations, angular_velocities):
+    accelerations = accelerations[:, 22000:24000]
+    angular_velocities = angular_velocities[:, 22000:24000]
     # boolean array of array position where x accelerations are above threshold
-    ax_over_threshold = abs(accelerations[0]) > axy_threshold
+    ax_over_threshold = np.logical_and(accelerations[0] > axy_threshold, accelerations[0] < max_axy_threshold)
+    ax_below_threshold = np.logical_and(accelerations[0] < -axy_threshold, accelerations[0] > -max_axy_threshold)
     # boolean array of array position where y accelerations are above threshold
-    ay_over_threshold = abs(accelerations[1]) > axy_threshold
+    ay_over_threshold = np.logical_and(accelerations[1] > axy_threshold, accelerations[1] < max_axy_threshold)
+    ay_below_threshold = np.logical_and(accelerations[1] < -axy_threshold, accelerations[1] > -max_axy_threshold)
     # boolean array of array position where z angular speed are below threshold
     gx_below_threshold = abs(angular_velocities[2]) < g_z_threshold
     # operate logical AND element-wise to get elements
-    return accelerations[:, ax_over_threshold & ay_over_threshold & gx_below_threshold]
+    x1 = accelerations[:, ax_over_threshold & ay_over_threshold & gx_below_threshold]
+    x2 = accelerations[:, ax_below_threshold & ay_over_threshold & gx_below_threshold]
+    x3 = accelerations[:, ax_over_threshold & ay_below_threshold & gx_below_threshold]
+    x4 = accelerations[:, ax_below_threshold & ay_below_threshold & gx_below_threshold]
+    return x1, x2, x3, x4
 
 
 def correct_xy_orientation(accelerations, angular_velocities):
@@ -162,22 +181,28 @@ def correct_xy_orientation(accelerations, angular_velocities):
     :param accelerations: 3xn numpy array angular velocities
     :param angular_velocities: 3xn numpy array angular velocities
     """
-
-    bad_align_proof = get_xy_bad_align_proof(accelerations, angular_velocities)
-    # get first vector
-    vec = bad_align_proof[:, 0]
-    # get angle and negate it to remove rotation
-    rotation_angle = -arctan(vec[1] / vec[0])
-
-    def rotatexy(angle, vector):
-        # use new var instead of inplace so when we rotate y we don't use the rotated x but the old one
-        new_x = cos(angle) * vector[0] - sin(angle) * vector[1]
-        new_y = sin(angle) * vector[0] + cos(angle) * vector[1]
+    #TODo find near points?
+    print("initial sum {}".format(get_xy_bad_align_count(accelerations, angular_velocities)))
+    def rotatexy(bad_align_proof):
+        new_accellerations = accelerations.copy()
+        if bad_align_proof.shape[1]>0:
+            # get first vector
+            vec = bad_align_proof.mean(axis=1)
+            # get angle and negate it to remove rotation
+            angle = -arctan(vec[1] / vec[0])
+            # use new var instead of inplace so when we rotate y we don't use the rotated x but the old one
+            new_accellerations[0] = cos(angle) * accelerations[0] - sin(angle) * accelerations[1]
+            new_accellerations[1] = sin(angle) * accelerations[0] + cos(angle) * accelerations[1]
         # now set new arrays
-        vector[0] = new_x
-        vector[1] = new_y
+        print("calling get xy bad align count for trying combination")
+        return get_xy_bad_align_count(new_accellerations, angular_velocities), new_accellerations
 
-    rotatexy(rotation_angle, accelerations)
+    x1, x2, x3, x4 = get_bad_alignment_vectors(accelerations,angular_velocities)
+    best_bad_vector = min([x1,x2,x3,x4],key=lambda x:rotatexy(x)[0])
+    _, accelerations = rotatexy(best_bad_vector)
+    print("final sum {}".format(get_xy_bad_align_count(accelerations, angular_velocities)))
+    return accelerations
+    
     # TODO find if there are others times where the condition returns
     # raise a warning/exception
     # rotate from that time above
