@@ -70,7 +70,7 @@ def converts_measurement_units(gps_speed, accelerations, angular_velocities):
     accelerations *= constants.g
     # multiply to degree to radians constant
     angular_velocities *= constants.degree
-    # multiply to km/h to m/s constant
+    # multiply to km/h -> m/s constant
     gps_speed *= constants.kmh
 
 
@@ -106,82 +106,33 @@ def clear_gyro_drift(angular_velocities):
     return angular_velocities
 
 
-def reduce_disturbance(times, vector):
+def reduce_disturbance(times, vectors):
     """ Reduce data disturbance with a moving average
 
     The length of the window is calculated internally in function of vector length
     Some values at the beginning of the array will be dropped.
 
     :param times: 1xn numpy array of timestamps
-    :param vector: 3xn numpy array of whatever numeric
+    :param vectors: 3xn numpy array of whatever numeric
+    :return 2 numpy vector: new times and new vector
     """
 
-    # windows dimension is 1/60 of dataframe rows count
-    window_dimension = round(vector.shape[1] / 60)
+    #TODO dinamically find windows dimension for 0.5 s
+    window_dimension = 20
     # use pandas because it has built in function of moving average
     # performance overhead is not much
     import pandas as pd
-    df = pd.DataFrame(vector.T)
+    df = pd.DataFrame(vectors.T)
     # overwrite dataframe with its moving average
-    df = df.rolling(window=window_dimension).mean()
+    df = df.rolling(window=window_dimension,center=True).mean()
     # now there ara 0:windows_dimension nan rows at the beginning
     # drop these rows
-    new_vector = df[window_dimension:].values.T
-    new_times = times[window_dimension:]
+    new_low_range = round(window_dimension/2)
+    new_upper_range = round(df.shape[0]-window_dimension/2)
+    #TODO change drop offset
+    new_vector = df[new_low_range:new_upper_range].values.T
+    new_times = times[new_low_range:new_upper_range]
     return new_times, new_vector
-
-
-# threshold above which acceleration along x and y axis are considered
-axy_threshold = 0.2
-# threshold above which acceleration along x and y axis are considered
-g_z_threshold = 0.01
-
-
-def get_xy_bad_align_proof(accelerations, angular_velocities):
-    """
-    find records (if present) where x and y accelerations are over a threshold
-    and angular speed around z is near or equal 0
-
-    :param accelerations: 3xn numpy array angular velocities
-    :param angular_velocities: 3xn numpy array angular velocities
-    :return: rows where condition apply
-    """
-    # boolean array of array position where x accelerations are above threshold
-    ax_over_threshold = abs(accelerations[0]) > axy_threshold
-    # boolean array of array position where y accelerations are above threshold
-    ay_over_threshold = abs(accelerations[1]) > axy_threshold
-    # boolean array of array position where z angular speed are below threshold
-    gx_below_threshold = abs(angular_velocities[2]) < g_z_threshold
-    # operate logical AND element-wise to get elements
-    return accelerations[:, ax_over_threshold & ay_over_threshold & gx_below_threshold]
-
-
-def correct_xy_orientation(accelerations, angular_velocities):
-    """ Detect bad position of sensor in the xy plane and correct reference frame
-
-    :param accelerations: 3xn numpy array angular velocities
-    :param angular_velocities: 3xn numpy array angular velocities
-    """
-
-    bad_align_proof = get_xy_bad_align_proof(accelerations, angular_velocities)
-    # get first vector
-    vec = bad_align_proof[:, 0]
-    # get angle and negate it to remove rotation
-    rotation_angle = -arctan(vec[1] / vec[0])
-
-    def rotatexy(angle, vector):
-        # use new var instead of inplace so when we rotate y we don't use the rotated x but the old one
-        new_x = cos(angle) * vector[0] - sin(angle) * vector[1]
-        new_y = sin(angle) * vector[0] + cos(angle) * vector[1]
-        # now set new arrays
-        vector[0] = new_x
-        vector[1] = new_y
-
-    rotatexy(rotation_angle, accelerations)
-    # TODO find if there are others times where the condition returns
-    # raise a warning/exception
-    # rotate from that time above
-
 
 def correct_z_orientation(accelerations, angular_velocities):
     """ Use gravity vector direction to align reference frame to correct z-axis
