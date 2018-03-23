@@ -32,10 +32,10 @@ Credits: Federico Bertani, Stefano Sinigardi, Alessandro Fabbri, Nico Curti
 """
 
 import numpy as np
-from scipy import constants
-from scipy.linalg import norm
-from scipy import cross, dot, arccos, arctan, cos, sin
 import quaternion
+from scipy import constants
+from scipy import cross, dot, arccos
+from scipy.linalg import norm
 
 from tests.test_fixtures import car_initial_stationary_time
 
@@ -117,22 +117,23 @@ def reduce_disturbance(times, vectors):
     :return 2 numpy vector: new times and new vector
     """
 
-    #TODO dinamically find windows dimension for 0.5 s
+    # TODO dynamically find windows dimension for 0.5 s
     window_dimension = 20
     # use pandas because it has built in function of moving average
     # performance overhead is not much
     import pandas as pd
     df = pd.DataFrame(vectors.T)
     # overwrite dataframe with its moving average
-    df = df.rolling(window=window_dimension,center=True).mean()
+    df = df.rolling(window=window_dimension, center=True).mean()
     # now there ara 0:windows_dimension nan rows at the beginning
     # drop these rows
-    new_low_range = round(window_dimension/2)
-    new_upper_range = round(df.shape[0]-window_dimension/2)
-    #TODO change drop offset
+    new_low_range = round(window_dimension / 2)
+    new_upper_range = round(df.shape[0] - window_dimension / 2)
+    # TODO change drop offset
     new_vector = df[new_low_range:new_upper_range].values.T
     new_times = times[new_low_range:new_upper_range]
     return new_times, new_vector
+
 
 def correct_z_orientation(accelerations, angular_velocities):
     """ Use gravity vector direction to align reference frame to correct z-axis

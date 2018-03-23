@@ -26,31 +26,48 @@ Credits: Federico Bertani, Stefano Sinigardi, Alessandro Fabbri, Nico Curti
 
 import numpy as np
 import quaternion
+from scipy import sin, cos
+from scipy.interpolate import interp1d
+from scipy.misc import derivative
 
-class TrajectoryGenerator:
+from plots_scripts.plot_utils import plot_vectors
+
+
+class Trajectory:
+    """
+    Create a trajectory and provide accelerations of the motion along it.
+    Useful for check quality of numerical integration methods against analytical trajectory.
+    Provides a method to do that.
+    """
 
     def __init__(self):
-        self.x0 = 0  # initial x position
-        self.v0x = 0  # initial x velocity
-        self.ax = 0.1  # x acceleration
+        """Creates TrajectoryGenerator object"""
+        # TODO generalize
+        self.v0x = 0  # initial linear velocity
+        self.ax = 0.1  # linear acceleration
         self.wz = 0.1  # z angular velocity
         dt = 1e-2  # timestep
-        self.r0 = np.array([0, 1, 0])  #  point position wrt cm
-        self.t = np.arange(0, 100, dt)  # timestamps
+        #  point position with respect to origin
+        self.__start_position = np.array([1, 0, 0])
+        # timestamps
+        self.__times = np.arange(0, 100, dt)
 
         def rcm(t):
-            """position at time t
+            """Linear position at time t
 
             linear uniform accelerated motion along z
             """
+            x0 = 0  # initial position
             return np.array([
                 0,
                 0,
-                self.x0 + self.v0x * t + 1 / 2 * self.ax * t ** 2
+                x0 + self.v0x * t + 1 / 2 * self.ax * t ** 2
             ])
 
         def thetacm(t):
-            """Angular position at time t of rotation around z"""
+            """ Angular position at time t
+
+            uniform circular motion around z"""
             return np.array([
                 0,
                 0,
@@ -58,13 +75,95 @@ class TrajectoryGenerator:
             ])
 
         # position in all times of linear uniform accelerated motion along z
-        r = np.array([rcm(ti) for ti in self.t]).T
+        r = np.array([rcm(ti) for ti in self.__times]).T
         # angular position in all times
-        th = np.array([thetacm(ti) for ti in self.t])
-        # array of pure quaternion the angular positions
-        thq = np.array([np.exp(quaternion.quaternion(*-thetai) / 2) for thetai in th])
-        # get successive rotations of inital point r0
-        r1 = np.array([(tq * quaternion.quaternion(*self.r0) * ~tq).components[1:4] for tq in thq])
-
+        self.th = np.array([thetacm(ti) for ti in self.__times])
+        # array of pure quaternion angular positions
+        thq = np.array([np.exp(quaternion.quaternion(*thetai) / 2) for thetai in self.th])
+        # get successive rotations of initial point
+        r1 = np.array([(tq * quaternion.quaternion(*self.__start_position) * ~tq).components[1:4] for tq in thq])
         # add vertical offset to positions
-        self.rp = r + r1.T
+        self.trajectory = r + r1.T
+        # save angular position function as object attribute to future calls
+        self.angular_position = thetacm
+
+    def get_analytical_accelerations(self):
+        """ Returns 3xn numpy array describing motion accelerations
+
+        Those acceleration are analytical calculated and aren't susceptible to errors
+        """
+        # create empty numpy array for accelerations
+        accelerations = np.zeros((3, len(self.__times)))
+        # radial accelerations is equal to angular velocity^2 / radius but radius is unitary is this trajectory
+        radial_acceleration = self.wz ** 2
+        # decompose radial accelerations in x and y components
+        accelerations[0, :] = radial_acceleration * -cos(self.th[:, 2])
+        accelerations[1, :] = radial_acceleration * -sin(self.th[:, 2])
+        # accelerations along x axis is constant
+        accelerations[2, :] = self.ax
+        return accelerations
+
+    def get_analytical_velocities(self):
+        """ Returns 3xn numpy array describing motion velocities
+
+        Those velocities are analytical calculated and aren't susceptible to errors
+        """
+        # create empty numpy array for accelerations
+        velocities = np.zeros((3, len(self.__times)))
+        # tangential velocity is angular velocity multiplied by radius but radius is one
+        vt = self.wz
+        # decompose tangential velocity in x and y components
+        velocities[0, :] = vt * -sin(self.th[:, 2])
+        velocities[1, :] = vt * cos(self.th[:, 2])
+        # linear velocity along z axis
+        velocities[2, :] = self.v0x + self.ax * self.__times
+        return velocities
+
+    def get_numerical_derived_accelerations(self):
+        """ Returns new array of times and a 3xn numpy array of accelerations derived numerically from trajectory
+
+        WARNING: the times will be cut because of the derivation algorithms. New times are returned by the function.
+        Those accelerations are susceptible to errors.
+        """
+        # interpolate trajectory to python function because scipy derivative method require it
+        trajectory_function = interp1d(x=self.__times, y=self.trajectory, copy=False, assume_sorted=True)
+        # removes some points to left and right margins because derivation is undefined there
+        times = np.array(list(filter(lambda x: 1 < x < 99, self.__times)))
+        # calculate numerical 2° order derivative and return it
+        return times, np.array([derivative(func=trajectory_function, x0=time, n=2) for time in times]).T
+
+    def get_times(self):
+        """return private attribute times"""
+        return self.__times
+
+    def get_start_position(self):
+        """return 3x1 numpy array describing motion initial position"""
+        return self.trajectory[:, 0]
+
+    def get_start_velocity(self):
+        """return 3x1 numpy array describing motion initial position"""
+        # uniform circular motion have a start velocity of omega
+        # TODO generate from start position and rotation direction
+        return np.array([0, self.wz, 0])
+
+    def check_trajectory(self, external_trajectory):
+        """
+        Check an external generated trajectory against the internally one
+
+        :param external_trajectory: 3xn numpy array describing trajectory
+        :return: 1xn numpy array of median error along all axis
+        """
+        # Create empty array for error measure
+        error = np.zeros((3, external_trajectory.shape[1]))
+        # loop over external trajectory
+        for i, external_x in enumerate(external_trajectory.T):
+            # get trajectory coordinates at step i
+            real_x = self.trajectory[:, i]
+            # calculate difference from external trajectory
+            error[:, i] = abs(real_x - external_x)
+        # return average error on all axis
+        return error.mean(axis=0)
+
+    def plot_trajectory(self):
+        """ Plots analytical trajectory"""
+        plot_vectors(self.trajectory, "analytical trajectory")

@@ -24,12 +24,12 @@ Credits: Federico Bertani, Stefano Sinigardi, Alessandro Fabbri, Nico Curti
 """
 
 import unittest
-import pandas as pd
+
 import numpy as np
+import pandas as pd
 
 from src.clean_data_utils import reduce_disturbance, parse_input, normalize_timestamp, converts_measurement_units, \
     correct_z_orientation, clear_gyro_drift
-
 from test_fixtures import car_initial_stationary_time
 
 drift_tolerance = 0.01
@@ -63,17 +63,17 @@ class ClearDataUtilsTest(unittest.TestCase):
         # import scipy constants
         from scipy.constants import g, pi, kmh
         # check measurement unit conversion
-        assert all(accelerations == g)
-        assert all(angular_velocities == pi)
-        assert all(gps_speed == kmh)
+        self.assertTrue(all(accelerations == g))
+        self.assertTrue(all(angular_velocities == pi))
+        self.assertTrue(all(gps_speed == kmh))
 
     def test_normalize_timestamp(self):
         # check that the first timestamp if not zero
-        assert self.times[0] != 0
+        self.assertTrue(self.times[0] != 0)
         # normalize timestamps
         normalize_timestamp(self.times)
         # check that now it's zero
-        assert self.times[0] == 0
+        self.assertTrue(self.times[0] == 0)
 
     def test_reduce_disturbance(self):
         variance_reduction_factor = 10
@@ -84,7 +84,7 @@ class ClearDataUtilsTest(unittest.TestCase):
         # check that the variance has been reduced by a factor
         variance_after = self.angular_velocities.var(axis=1).T[0]
         ratio = variance_before / variance_after
-        assert ratio >= variance_reduction_factor
+        self.assertTrue(ratio >= variance_reduction_factor)
 
     def test_correct_z_orientation(self):
         _, self.accelerations = reduce_disturbance(self.times, self.accelerations)
@@ -92,10 +92,11 @@ class ClearDataUtilsTest(unittest.TestCase):
         # get average value in start stationary time
         stationary_ax_mean_before = self.accelerations[0, 0:car_initial_stationary_time].mean()
         stationary_ay_mean_before = self.accelerations[1, 0:car_initial_stationary_time].mean()
-        # execute test only if there is a accelleration componet on x/y when the car should be stationary
+        # execute test only if there is a acceleration component on x/y when the car should be stationary
         if abs(stationary_ax_mean_before) > threshold or abs(stationary_ay_mean_before) > threshold:
-            #correct z orientation
-            self.accelerations, self.angular_velocities = correct_z_orientation(self.accelerations, self.angular_velocities)
+            # correct z orientation
+            self.accelerations, self.angular_velocities = correct_z_orientation(self.accelerations,
+                                                                                self.angular_velocities)
             # get average value in start stationary time
             stationary_ax_mean_after = self.accelerations[0, 0:car_initial_stationary_time].mean()
             stationary_ay_mean_after = self.accelerations[1, 0:car_initial_stationary_time].mean()
