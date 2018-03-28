@@ -30,7 +30,7 @@ import matplotlib.pyplot as plt
 from tests.test_integration import integrate_and_test, Trajectory, \
     quad_integrate, trapz_integrate, simps_integrate
 
-if __name__ == 'main':
+if __name__ == '__main__':
     trajectory = Trajectory()
     quad_error = integrate_and_test(quad_integrate)
     trapz_error = integrate_and_test(trapz_integrate)
