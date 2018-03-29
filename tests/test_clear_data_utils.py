@@ -29,10 +29,7 @@ import numpy as np
 import pandas as pd
 
 from src.clean_data_utils import reduce_disturbance, parse_input, normalize_timestamp, converts_measurement_units, \
-    correct_z_orientation, clear_gyro_drift
-from test_fixtures import car_initial_stationary_time
-
-drift_tolerance = 0.01
+    correct_z_orientation, clear_gyro_drift, get_stationary_times
 
 
 class ClearDataUtilsTest(unittest.TestCase):
@@ -40,17 +37,25 @@ class ClearDataUtilsTest(unittest.TestCase):
     def setUp(self):
         df = pd.read_csv('tests/test_fixtures/raw_inertial_data.txt', sep='\t')
         self.times, self.gps_speed, self.accelerations, self.angular_velocities = parse_input(df)
+        converts_measurement_units(self.gps_speed,self.accelerations,self.angular_velocities)
+
+    def test_detect_stationary_times(self):
+        # only check get_stationary_times doesn't raise exceptions
+        stationary_times = get_stationary_times(self.gps_speed)
+        self.assertGreater(len(stationary_times),0)
 
     def test_clearGyroDrift(self):
+        drift_tolerance = 0.0002
+        stationary_times = get_stationary_times(self.gps_speed)
         _, self.angular_velocities = reduce_disturbance(self.times, self.angular_velocities)
         # get initial stationary time angular speed around x-axis
-        initial_stationary_time_gx_value = self.angular_velocities[0, 0:car_initial_stationary_time].mean()
+        initial_stationary_time_gx_value = self.angular_velocities[0, 0:stationary_times[0][1]].mean()
         # check there is a gyroscope drift
         assert abs(initial_stationary_time_gx_value) > drift_tolerance
         # call util to remove drift
-        self.angular_velocities = clear_gyro_drift(self.angular_velocities)
+        self.angular_velocities = clear_gyro_drift(self.angular_velocities,stationary_times)
         # re-calculate initial angular speed around x-axis
-        initial_stationary_time_gx_value = self.angular_velocities[0, 0:car_initial_stationary_time].mean()
+        initial_stationary_time_gx_value = self.angular_velocities[0, 0:stationary_times[0][1]].mean()
         # check that the drift is lower than a tolerance
         assert abs(initial_stationary_time_gx_value) < drift_tolerance
 
@@ -87,19 +92,20 @@ class ClearDataUtilsTest(unittest.TestCase):
         self.assertTrue(ratio >= variance_reduction_factor)
 
     def test_correct_z_orientation(self):
+        stationary_times = get_stationary_times(self.gps_speed)
         _, self.accelerations = reduce_disturbance(self.times, self.accelerations)
         threshold = 0.1
         # get average value in start stationary time
-        stationary_ax_mean_before = self.accelerations[0, 0:car_initial_stationary_time].mean()
-        stationary_ay_mean_before = self.accelerations[1, 0:car_initial_stationary_time].mean()
+        stationary_ax_mean_before = self.accelerations[0, 0:stationary_times[0][1]].mean()
+        stationary_ay_mean_before = self.accelerations[1, 0:stationary_times[0][1]].mean()
         # execute test only if there is a acceleration component on x/y when the car should be stationary
         if abs(stationary_ax_mean_before) > threshold or abs(stationary_ay_mean_before) > threshold:
             # correct z orientation
             self.accelerations, self.angular_velocities = correct_z_orientation(self.accelerations,
-                                                                                self.angular_velocities)
+                                                                                self.angular_velocities,stationary_times)
             # get average value in start stationary time
-            stationary_ax_mean_after = self.accelerations[0, 0:car_initial_stationary_time].mean()
-            stationary_ay_mean_after = self.accelerations[1, 0:car_initial_stationary_time].mean()
+            stationary_ax_mean_after = self.accelerations[0, 0:stationary_times[0][1]].mean()
+            stationary_ay_mean_after = self.accelerations[1, 0:stationary_times[0][1]].mean()
             # in x and y axis it shouldn't be any acceleration
             assert stationary_ax_mean_after < stationary_ax_mean_before
             assert stationary_ay_mean_after < stationary_ay_mean_before

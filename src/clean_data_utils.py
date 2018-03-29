@@ -37,8 +37,6 @@ from scipy import constants
 from scipy import cross, dot, arccos
 from scipy.linalg import norm
 
-from tests.test_fixtures import car_initial_stationary_time
-
 
 def parse_input(df):
     """ Transform single dataframe to multiple numpy array each representing different physic quantity
@@ -52,6 +50,42 @@ def parse_input(df):
     times = df['timestamp'].values.T
     gps_speed = df['speed'].values.T
     return times, gps_speed, accelerations, angular_velocities
+
+
+def get_stationary_times(gps_speed):
+    """ Returns list of times where the gps speed is near zero
+
+    :param gps_speed: 1xn numpy array of gps speed in m/s
+    :return: list of tuples, each one with start and final timestamp of a stationary time
+    """
+
+    speed_threshold = 0.2 # 0.2 m/s
+    min_stationary_time_length = 10
+    # Find times where gps speed is inside threshold
+    # Didn't use np.nonzero because i needed contiguous slices and also check on length of slice
+    boolean_vect = np.bitwise_and(gps_speed > -speed_threshold, gps_speed < speed_threshold)
+    import math
+    # set a value that can't exist as index
+    firstTrue = math.inf
+    lastTrue = math.inf
+    stationary_times = []
+    for i, x in enumerate(boolean_vect):
+        if firstTrue == math.inf and x is np.bool_(True):
+            # enter stationary time mode
+            firstTrue = i
+        if firstTrue != math.inf and x is  np.bool_(True):
+            # add a timestamp to slice
+            lastTrue = i
+        if firstTrue != math.inf and lastTrue != math.inf and x is np.bool_(False):
+            # end slice
+            # if slice length is greater than a minimum lenght
+            if lastTrue - firstTrue > min_stationary_time_length:
+                # add slice to stationary times list
+                stationary_times.append((firstTrue, lastTrue))
+            # reset
+            firstTrue = math.inf
+            lastTrue = math.inf
+    return stationary_times
 
 
 def converts_measurement_units(gps_speed, accelerations, angular_velocities):
@@ -93,16 +127,25 @@ def sign_inversion_is_necessary(velocities):
     return any(velocities[0] < speed_threshold)
 
 
-def clear_gyro_drift(angular_velocities):
+def clear_gyro_drift(angular_velocities,stationary_times):
     """ Remove gyroscope natural drift
 
     This function assumes the car is stationary in the first 10000 measurements
 
     :param angular_velocities: 3xn numpy array of angular velocities
     """
-    angular_velocities[0] = angular_velocities[0] - angular_velocities[0, 0:car_initial_stationary_time].mean()
-    angular_velocities[1] = angular_velocities[1] - angular_velocities[1, 0:car_initial_stationary_time].mean()
-    angular_velocities[2] = angular_velocities[2] - angular_velocities[2, 0:car_initial_stationary_time].mean()
+
+    # get drift on first stationary time
+    main_drift = angular_velocities[:,stationary_times[0][0]:stationary_times[0][1]].mean(axis=1)
+    # remove on all data
+    angular_velocities = (angular_velocities.T - main_drift).T
+    # for remaining stationary times
+    for stationary_time in stationary_times[1:]:
+        start = stationary_time[0]
+        end = stationary_time[1]
+        # drift can now be changed by heat, remove only from start time of stationary time to end of data
+        drift = angular_velocities[:,start:end].mean(axis=1)
+        angular_velocities[:,start:] = (angular_velocities[:,start:].T - drift).T
     return angular_velocities
 
 
@@ -135,28 +178,49 @@ def reduce_disturbance(times, vectors):
     return new_times, new_vector
 
 
-def correct_z_orientation(accelerations, angular_velocities):
+def correct_z_orientation(accelerations, angular_velocities, stationary_times):
     """ Use gravity vector direction to align reference frame to correct z-axis
 
     Assumes the car is stationary for the first 10000 times and the gravity haven't been removed
 
     :param accelerations: 3xn numpy array angular velocities
     :param angular_velocities: 3xn numpy array angular velocities
+    :param stationary_times
     :return: numpy arrays: rotated accelerations, rotated angular velocities
     """
 
-    g = accelerations[:, 0:car_initial_stationary_time].mean(axis=1)
-    g_norm = norm(g)
-    u = cross(g, (0, 0, 1))
-    # rotation axis
-    u_unit = u / norm(u)
-    # rotate angle
-    theta = arccos(dot(g, (0, 0, 1)) / g_norm)
-    rotator = np.exp(quaternion.quaternion(*(theta * u_unit)) / 2)
-    rotated_accelerations = np.array(
-        [(rotator * quaternion.quaternion(*acceleration_vector) * ~rotator).components[1:]
-         for acceleration_vector in accelerations.T])
-    rotated_angular_velocities = np.array(
-        [(rotator * quaternion.quaternion(*angular_velocity) * ~rotator).components[1:]
-         for angular_velocity in angular_velocities.T])
-    return rotated_accelerations.T, rotated_angular_velocities.T
+    # get value of g in the first stationary time
+    g = accelerations[:, stationary_times[0][0]:stationary_times[0][1]].mean(axis=1)
+
+    def align_from_g_vector(accelerations,angular_velocities,g):
+        g_norm = norm(g)
+        u = cross(g, (0, 0, 1))
+        # rotation axis
+        u_unit = u / norm(u)
+        # rotate angle
+        theta = arccos(dot(g, (0, 0, 1)) / g_norm)
+        rotator = np.exp(quaternion.quaternion(*(theta * u_unit)) / 2)
+        rotated_accelerations = np.array(
+            [(rotator * quaternion.quaternion(*acceleration_vector) * ~rotator).components[1:]
+             for acceleration_vector in accelerations.T])
+        rotated_angular_velocities = np.array(
+            [(rotator * quaternion.quaternion(*angular_velocity) * ~rotator).components[1:]
+             for angular_velocity in angular_velocities.T])
+        return rotated_accelerations.T, rotated_angular_velocities.T
+
+    accelerations, angular_velocities = align_from_g_vector(accelerations,angular_velocities,g)
+
+    # for the remaining stationary times
+    for stationary_time in stationary_times[1:]:
+        # calculate bad align angle
+        g = accelerations[:, stationary_time[0]:stationary_time[1]].mean(axis=1)
+        bad_align_angle = arccos(dot(g, (0, 0, 1)) / norm(g))
+        # if the bad align angle is greater than 2 degrees
+        if bad_align_angle > np.deg2rad(2):
+            # print a warning
+            import warnings
+            warnings.warn("Found additional bad z axis alignment at time {}, realigning from now".format(stationary_time[0]))
+            # re-align
+            accelerations, angular_velocities = align_from_g_vector(accelerations, angular_velocities, g)
+
+    return accelerations, angular_velocities

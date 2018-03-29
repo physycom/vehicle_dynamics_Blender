@@ -25,7 +25,7 @@ Credits: Federico Bertani, Stefano Sinigardi, Alessandro Fabbri, Nico Curti
 
 import matplotlib.pyplot as plt
 # needed for 3d projection
-
+from mpl_toolkits.mplot3d import axes3d, Axes3D
 
 def plot_vectors(vectors, label=None):
     """ Plot 3xn numpy array in 2d and 3d
