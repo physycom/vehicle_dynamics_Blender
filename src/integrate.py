@@ -28,7 +28,6 @@ Credits: Federico Bertani, Stefano Sinigardi, Alessandro Fabbri, Nico Curti
 
 import numpy as np
 import quaternion
-from scipy.integrate import simps, trapz
 
 
 def quad_integrate(times, vector, initial=np.zeros(3)):
@@ -57,20 +56,32 @@ def trapz_integrate(times, vector, initial=np.zeros(3)):
 
 def simps_integrate(times, accelerations, initial=np.zeros(3)):
     stop = accelerations.shape[1]
+    offset = 0
     velocities = np.zeros((3, stop))
-    stop = stop - 1 if (stop % 2 == 0) else stop
+    if not (stop % 3 == 0):
+        if (stop - 1) % 3 == 0:
+            stop = stop - 1
+            offset = 1
+        elif (stop - 2) % 3 == 0:
+            stop = stop - 2
+            offset = 2
     current_velocity = np.reshape(initial, (3, 1))
-    for i in range(0, stop, 2):
-        velocities[:, i:i + 3] = current_velocity
-        accelerations_local = accelerations[:, i:i + 3]
+    from scipy import interpolate
+    acc_f = interpolate.interp1d(x=times, y=accelerations, kind="quadratic", axis=1)
+    for i in range(0, stop - 1, 1):
+        velocities[:, i] = current_velocity.T
         times_local = times[i:i + 3]
-        delta_v = simps(y=accelerations_local, x=times_local, axis=1)
+        h = (times_local[2] - times_local[0]) / 2
+        delta_v = h / 3 * (acc_f(times_local[0])
+                           + 4 * acc_f(times_local[0] + h)
+                           + acc_f(times_local[0] + 2 * h))
         delta_v = np.reshape(delta_v, (3, 1))
+        delta_v = delta_v / 2
         current_velocity = current_velocity + delta_v
-    if np.all(velocities[:, -1:] == 0):
-        velocities[:, :-1] = velocities[:, -2] + trapz(times[-2:], accelerations[:, -2:])
+    if offset != 0:
+        velocities[:, (-offset - 2):] = \
+            trapz_integrate(times[(-offset - 2):], accelerations[:, (-offset - 2):], initial=velocities[:, -offset - 2])
     return velocities
-
 
 def rotate_accelerations(times, accelerations, angular_velocities):
     # integrate angular velocities to get angular positions
