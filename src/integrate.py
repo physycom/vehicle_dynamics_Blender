@@ -54,34 +54,98 @@ def trapz_integrate(times, vector, initial=np.zeros(3)):
     return result_vector
 
 
-def simps_integrate(times, accelerations, initial=np.zeros(3)):
-    stop = accelerations.shape[1]
-    offset = 0
-    velocities = np.zeros((3, stop))
-    if not (stop % 3 == 0):
-        if (stop - 1) % 3 == 0:
-            stop = stop - 1
-            offset = 1
-        elif (stop - 2) % 3 == 0:
-            stop = stop - 2
-            offset = 2
-    current_velocity = np.reshape(initial, (3, 1))
-    from scipy import interpolate
-    acc_f = interpolate.interp1d(x=times, y=accelerations, kind="quadratic", axis=1)
-    for i in range(0, stop - 1, 1):
-        velocities[:, i] = current_velocity.T
-        times_local = times[i:i + 3]
-        h = (times_local[2] - times_local[0]) / 2
-        delta_v = h / 3 * (acc_f(times_local[0])
-                           + 4 * acc_f(times_local[0] + h)
-                           + acc_f(times_local[0] + 2 * h))
-        delta_v = np.reshape(delta_v, (3, 1))
-        delta_v = delta_v / 2
-        current_velocity = current_velocity + delta_v
-    if offset != 0:
-        velocities[:, (-offset - 2):] = \
-            trapz_integrate(times[(-offset - 2):], accelerations[:, (-offset - 2):], initial=velocities[:, -offset - 2])
-    return velocities
+def simps_integrate(times, vectors, initial=np.zeros(3)):
+    """
+    Simpson integration with irregularly-spaced data
+
+    Method from paper https://scholarworks.umt.edu/cgi/viewcontent.cgi?article=1319&context=tme
+    Works both with even and odd vectors
+
+    :param times: 1xn np array of timestamps
+    :param vectors: 3xn np vector to integrate
+    :param initial: 3x1 np array integration initial value
+    :return: 3xn np array vector integrated
+    """
+
+    stop = vectors.shape[1]
+    # create vector to keep results
+    result_vectors = np.zeros((3, stop))
+    # if vector is even
+    if stop % 2 == 0:
+        # makes main integration on an odd number of elements
+        stop = stop - 1
+    # create vector to keep current progress value
+    current = np.reshape(initial, (3, 1))
+    # save current in first result position
+    result_vectors[:, 0] = current.T
+    # iterate through vector to integrate
+    for i in range(0, stop - 2):
+        # create (x_i,y_i) points
+        x = times[i:i + 3]
+        # 3x3 array
+        vector_locals = vectors[:, i:i + 3]
+
+        def get_parab_integrator(x, vector_locals):
+            """ Returns array of functions
+
+            Each function integrates a interpolated parabola in (x,vector_locals[i])
+            """
+
+            integrators = []
+            for i, y in enumerate(vector_locals):
+                # create matrix to solve linear system
+                matrix = np.array([
+                    [x[0] ** 2, x[0], 1],
+                    [x[1] ** 2, x[1], 1],
+                    [x[2] ** 2, x[2], 1],
+                ])
+                # solve linear system with matrix inversion and dot product
+                A, B, C = np.dot(np.linalg.inv(matrix), y)
+
+                # use classes because closure didn't works
+                class Integrator:
+
+                    def __init__(self, A, B, C):
+                        self.A = A
+                        self.B = B
+                        self.C = C
+
+                    def integrator_fun(self, x1, x3):
+                        return self.A / 3 * (x3 ** 3 - x1 ** 3) + self.B / 2 * (x3 ** 2 - x1 ** 2) + self.C * (x3 - x1)
+
+                integrators.append(Integrator(A, B, C).integrator_fun)
+            return integrators
+
+        integrators = get_parab_integrator(x, vector_locals)
+        # for each integrator function get integral value only of the "first part" of the parabola
+        delta = np.array([integrator(x[0], x[1]) for integrator in integrators])
+        # reshape delta vector to make sum with current
+        delta = np.reshape(delta, (3, 1))
+        current = current + delta
+        # save it in the next position
+        result_vectors[:, i + 1] = current.T
+    # fill last element element with already calculated integrator
+    # get integral value of "last part" of the parabola
+    delta = np.array([integrator(x[1], x[2]) for integrator in integrators])
+    # reshape delta vector to make sum with current
+    delta = np.reshape(delta, (3, 1))
+    current = current + delta
+    # set current velocity in last/second-last element (depends on odd/even vectors)
+    result_vectors[:, i + 2] = current.T
+    # if the vector is even the last element is still zero
+    if all(result_vectors[:, -1]) == 0:
+        # interpolate a parabola for last three elements
+        x = times[-3:]
+        y = vectors[:, -3:]
+        integrators = get_parab_integrator(x, y)
+        # get integral value of "last part" of the parabola
+        delta = np.array([integrator(x[1], x[2]) for integrator in integrators])
+        # reshape delta vector to make sum with current
+        delta = np.reshape(delta, (3, 1))
+        # save in last position
+        result_vectors[:, -1] = (current + delta).T
+    return result_vectors
+
 
 def rotate_accelerations(times, accelerations, angular_velocities):
     # integrate angular velocities to get angular positions
