@@ -71,25 +71,56 @@ def detect_input_type(df,filepath):
             # TODO acc or gyr
             filetype = InputType.ACCELERATION
         elif column_count==10:
-            # TODO mod / unmod
-            filetype = InputType.INERTIAL
+            if df.isnull().values.any():
+                filetype = InputType.UNMOD_INERTIAL
+            else:
+                filetype = InputType.INERTIAL
         elif column_count==14:
-            # TODO mod / unmod
-            filetype = InputType.UNMOD_FULLINERTIAL
+            if df.isnull().values.any():
+                filetype = InputType.UNMOD_FULLINERTIAL
+            else:
+                filetype = InputType.FULLINERTIAL
     return filetype
 
 def get_vectors(df,input_type):
+    """
+    Get various numpy vectors based from dataframe columns based on input type
+
+    :param df: pandas dataframe
+    :param input_type: InputType enum
+    :return:
+        times, gps_speed, accelerations, angular_velocities if input is inertial \n
+        times, coordinates, gps_speed, accelerations, angular_velocities if input is fullinertial
+    """
     if input_type == InputType.INERTIAL or input_type == InputType.UNMOD_INERTIAL:
         accelerations = df[['ax', 'ay', 'az']].values.T
         angular_velocities = df[['gx', 'gy', 'gz']].values.T
         times = df['timestamp'].values.T
         gps_speed = df['speed'].values.T
         return times, gps_speed, accelerations, angular_velocities
-    elif input_type == InputType.FULLINERTIAL or input_type == InputType.UNMOD_FULLINERTIAL:
-        coordinates = df[['lat','lon']].values.T
+    elif input_type == InputType.FULLINERTIAL:
+        coordinates = df[['lat', 'lon']].values.T
         accelerations = df[['ax', 'ay', 'az']].values.T
         angular_velocities = df[['gx', 'gy', 'gz']].values.T
         times = df['timestamp'].values.T
+        gps_speed = df['speed'].values.T
+        return times, coordinates, gps_speed, accelerations, angular_velocities
+    elif input_type == InputType.UNMOD_FULLINERTIAL:
+        # the input has gnss and inertial records mixed
+        # filter gnss records
+        clean_coordinates = df.dropna(subset=['lat'])
+        # interpolate coordinates
+        from scipy.interpolate import interp1d
+        coords = clean_coordinates[['lat','lon']].values
+        coords_timestamp = clean_coordinates['timestamp'].values
+        coord_func = interp1d(x=coords_timestamp,y=coords.T)
+        # filter inertial records from dataframe
+        df = df.dropna(subset=['ax'])
+        accelerations = df[['ax', 'ay', 'az']].values.T
+        angular_velocities = df[['gx', 'gy', 'gz']].values.T
+        times = df['timestamp'].values.T
+        # create coordinates vectors on inertial timestamp
+        coordinates = [coord_func(time) for time in times]
         gps_speed = df['speed'].values.T
         return times, coordinates, gps_speed, accelerations, angular_velocities
 
@@ -105,6 +136,11 @@ def parse_input(filepath,accepted_types=[type for type in InputType],sliceStart=
     :param accepted_types: list of accepted input types from <InputType> enum. Default accept all types.
     :param sliceStart: integer
     :param sliceEnd: integer
+    :return:
+        times, gps_speed, accelerations, angular_velocities if input is inertial \n
+        times, coordinates, gps_speed, accelerations, angular_velocities if input is fullinertial
+    :raises:
+        Exception if format is not accepted or recognized
     """
 
     # open file
