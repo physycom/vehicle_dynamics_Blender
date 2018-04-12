@@ -30,8 +30,9 @@ from scipy.linalg import norm
 
 from plots_scripts.plot_utils import plot_vectors
 from src.clean_data_utils import converts_measurement_units, reduce_disturbance, \
-    clear_gyro_drift, parse_input, correct_z_orientation, normalize_timestamp, \
-    sign_inversion_is_necessary, get_stationary_times
+    clear_gyro_drift, correct_z_orientation, normalize_timestamp, \
+    sign_inversion_is_necessary, get_stationary_times, parse_input as correct_parse_input
+from input_manager import parse_input, InputType
 from src.integrate import rotate_accelerations, simps_integrate
 
 if __name__ == '__main__':
@@ -41,11 +42,8 @@ if __name__ == '__main__':
 
     start_time = time.time()
 
-    # read csv with tab separator
-    df = pd.read_csv('tests/test_fixtures/raw_inertial_data.txt', sep='\t')
-    # use pandas only for its good parsing
-    # now get values
-    times, gps_speed, accelerations, angular_velocities = parse_input(df)
+    raw_intertial = 'tests/test_fixtures/raw_inertial_data.txt'
+    times, gps_speed, accelerations, angular_velocities = parse_input(raw_intertial, [InputType.INERTIAL])
     converts_measurement_units(gps_speed, accelerations, angular_velocities)
     stationary_times = get_stationary_times(gps_speed)
     # reduce accelerations disturbance

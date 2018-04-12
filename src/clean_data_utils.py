@@ -85,6 +85,9 @@ def get_stationary_times(gps_speed):
             # reset
             firstTrue = math.inf
             lastTrue = math.inf
+    # handle case where stationary times not ends before data ends
+    if firstTrue != math.inf and lastTrue != math.inf:
+        stationary_times.append((firstTrue, lastTrue))
     return stationary_times
 
 
@@ -219,7 +222,8 @@ def correct_z_orientation(accelerations, angular_velocities, stationary_times):
         if bad_align_angle > np.deg2rad(2):
             # print a warning
             import warnings
-            warnings.warn("Found additional bad z axis alignment at time {}, realigning from now".format(stationary_time[0]))
+            message = " \n Found additional bad z axis alignment at time {} , realigning from now  \n".format(stationary_time[0])
+            warnings.warn(message)
             # re-align
             accelerations, angular_velocities = align_from_g_vector(accelerations, angular_velocities, g)
 

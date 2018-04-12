@@ -28,15 +28,16 @@ import unittest
 import numpy as np
 import pandas as pd
 
-from src.clean_data_utils import reduce_disturbance, parse_input, normalize_timestamp, converts_measurement_units, \
+from src.clean_data_utils import reduce_disturbance, normalize_timestamp, converts_measurement_units, \
     correct_z_orientation, clear_gyro_drift, get_stationary_times
+from input_manager import parse_input, InputType
 
 
 class ClearDataUtilsTest(unittest.TestCase):
 
     def setUp(self):
-        df = pd.read_csv('tests/test_fixtures/raw_inertial_data.txt', sep='\t')
-        self.times, self.gps_speed, self.accelerations, self.angular_velocities = parse_input(df)
+        filepath = 'tests/test_fixtures/raw_inertial_data.txt'
+        self.times, self.gps_speed, self.accelerations, self.angular_velocities = parse_input(filepath,[InputType.INERTIAL])
         converts_measurement_units(self.gps_speed,self.accelerations,self.angular_velocities)
 
     def test_detect_stationary_times(self):
