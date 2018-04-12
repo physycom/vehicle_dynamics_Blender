@@ -79,11 +79,11 @@ def simps_integrate(times, vectors, initial=np.zeros(3)):
     # save current in first result position
     result_vectors[:, 0] = current.T
     # iterate through vector to integrate
-    for i in range(0, stop - 2):
+    for vect_index in range(0, stop - 2):
         # create (x_i,y_i) points
-        x = times[i:i + 3]
+        x = times[vect_index:vect_index + 3]
         # 3x3 array
-        vector_locals = vectors[:, i:i + 3]
+        vector_locals = vectors[:, vect_index:vect_index + 3]
 
         def get_parab_integrator(x, vector_locals):
             """ Returns array of functions
@@ -100,8 +100,17 @@ def simps_integrate(times, vectors, initial=np.zeros(3)):
                     [x[2] ** 2, x[2], 1],
                 ])
                 # solve linear system with matrix inversion and dot product
-                A, B, C = np.dot(np.linalg.inv(matrix), y)
-
+                try:
+                    A, B, C = np.dot(np.linalg.inv(matrix), y)
+                except np.linalg.LinAlgError:
+                    # matrix isn't in enough precision
+                    x = np.array([times[vect_index-1],times[vect_index+1],times[vect_index+3]])
+                    matrix = np.array([
+                        [x[0] ** 2, x[0], 1],
+                        [x[1] ** 2, x[1], 1],
+                        [x[2] ** 2, x[2], 1],
+                    ])
+                    A, B, C = np.dot(np.linalg.inv(matrix), y)
                 # use classes because closure didn't works
                 class Integrator:
 
@@ -123,7 +132,7 @@ def simps_integrate(times, vectors, initial=np.zeros(3)):
         delta = np.reshape(delta, (3, 1))
         current = current + delta
         # save it in the next position
-        result_vectors[:, i + 1] = current.T
+        result_vectors[:, vect_index + 1] = current.T
     # fill last element element with already calculated integrator
     # get integral value of "last part" of the parabola
     delta = np.array([integrator(x[1], x[2]) for integrator in integrators])
@@ -131,7 +140,7 @@ def simps_integrate(times, vectors, initial=np.zeros(3)):
     delta = np.reshape(delta, (3, 1))
     current = current + delta
     # set current velocity in last/second-last element (depends on odd/even vectors)
-    result_vectors[:, i + 2] = current.T
+    result_vectors[:, vect_index + 2] = current.T
     # if the vector is even the last element is still zero
     if all(result_vectors[:, -1]) == 0:
         # interpolate a parabola for last three elements
