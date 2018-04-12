@@ -30,7 +30,7 @@ import pandas as pd
 
 from src.clean_data_utils import reduce_disturbance, normalize_timestamp, converts_measurement_units, \
     correct_z_orientation, clear_gyro_drift, get_stationary_times
-from input_manager import parse_input, InputType
+from src.input_manager import parse_input, InputType
 
 
 class ClearDataUtilsTest(unittest.TestCase):
