@@ -25,14 +25,13 @@ Credits: Federico Bertani, Stefano Sinigardi, Alessandro Fabbri, Nico Curti
 """
 
 import matplotlib.pyplot as plt
-import pandas as pd
 from scipy.linalg import norm
 
 from plots_scripts.plot_utils import plot_vectors
 from src.clean_data_utils import converts_measurement_units, reduce_disturbance, \
     clear_gyro_drift, correct_z_orientation, normalize_timestamp, \
-    sign_inversion_is_necessary, get_stationary_times, parse_input as correct_parse_input
-from input_manager import parse_input, InputType
+    sign_inversion_is_necessary, get_stationary_times
+from src.input_manager import parse_input, InputType
 from src.integrate import rotate_accelerations, simps_integrate
 
 if __name__ == '__main__':
@@ -42,17 +41,17 @@ if __name__ == '__main__':
 
     start_time = time.time()
 
-    raw_intertial = 'tests/test_fixtures/raw_inertial_data.txt'
-    times, gps_speed, accelerations, angular_velocities = parse_input(raw_intertial, [InputType.INERTIAL])
+    raw_inertial = 'tests/test_fixtures/raw_inertial_data.txt'
+    times, gps_speed, accelerations, angular_velocities = parse_input(raw_inertial, [InputType.INERTIAL])
     converts_measurement_units(gps_speed, accelerations, angular_velocities)
     stationary_times = get_stationary_times(gps_speed)
     # reduce accelerations disturbance
     times, accelerations = reduce_disturbance(times, accelerations)
     # reduce angular velocities disturbance
     _, angular_velocities = reduce_disturbance(times, angular_velocities)
-    angular_velocities = clear_gyro_drift(angular_velocities,stationary_times)
+    angular_velocities = clear_gyro_drift(angular_velocities, stationary_times)
     normalize_timestamp(times)
-    accelerations, angular_velocities = correct_z_orientation(accelerations, angular_velocities,stationary_times)
+    accelerations, angular_velocities = correct_z_orientation(accelerations, angular_velocities, stationary_times)
     # remove g
     accelerations[2] -= accelerations[2, stationary_times[0][0]:stationary_times[0][-1]].mean()
     # convert to laboratory frame of reference

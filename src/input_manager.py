@@ -23,10 +23,12 @@ Credits: Federico Bertani, Stefano Sinigardi, Alessandro Fabbri, Nico Curti
 
 """
 
-
-from io import StringIO
 from enum import Enum, auto, unique
+from io import StringIO
+
+import numpy as np
 import pandas as pd
+
 
 @unique
 class InputType(Enum):
@@ -40,7 +42,7 @@ class InputType(Enum):
     UNRECOGNIZED = auto()
 
 
-def detect_input_type(df,filepath):
+def detect_input_type(df, filepath):
     """
 
     :param df:
@@ -50,19 +52,19 @@ def detect_input_type(df,filepath):
     # default file type
     filetype = InputType.UNRECOGNIZED
     # analyze file name
-    if filepath.find("acc")!=-1:
+    if filepath.find("acc") != -1:
         filetype = InputType.ACCELERATION
-    elif filepath.find("gnss")!=-1:
+    elif filepath.find("gnss") != -1:
         filetype = InputType.GNSS
-    elif filepath.find("gyr")!=-1:
+    elif filepath.find("gyr") != -1:
         filetype = InputType.GYROSCOPE
-    elif filepath.find("unmodified-fullinertial")!=-1:
+    elif filepath.find("unmodified-fullinertial") != -1:
         filetype = InputType.UNMOD_FULLINERTIAL
-    elif filepath.find("unmodified-inertial")!=-1:
+    elif filepath.find("unmodified-inertial") != -1:
         filetype = InputType.UNMOD_INERTIAL
-    elif filepath.find("fullinertial")!=-1:
+    elif filepath.find("fullinertial") != -1:
         filetype = InputType.FULLINERTIAL
-    elif filepath.find("inertial")!=-1:
+    elif filepath.find("inertial") != -1:
         filetype = InputType.INERTIAL
     # if no match are found try with column count
     else:
@@ -70,19 +72,20 @@ def detect_input_type(df,filepath):
         if column_count == 4:
             # TODO acc or gyr
             filetype = InputType.ACCELERATION
-        elif column_count==10:
+        elif column_count == 10:
             if df.isnull().values.any():
                 filetype = InputType.UNMOD_INERTIAL
             else:
                 filetype = InputType.INERTIAL
-        elif column_count==14:
+        elif column_count == 14:
             if df.isnull().values.any():
                 filetype = InputType.UNMOD_FULLINERTIAL
             else:
                 filetype = InputType.FULLINERTIAL
     return filetype
 
-def get_vectors(df,input_type):
+
+def get_vectors(df, input_type):
     """
     Get various numpy vectors based from dataframe columns based on input type
 
@@ -90,7 +93,7 @@ def get_vectors(df,input_type):
     :param input_type: InputType enum
     :return:
         times, gps_speed, accelerations, angular_velocities if input is inertial \n
-        times, coordinates, gps_speed, accelerations, angular_velocities if input is fullinertial
+        times, coordinates, altitudes, gps_speed, accelerations, angular_velocities if input is fullinertial
     """
     if input_type == InputType.INERTIAL or input_type == InputType.UNMOD_INERTIAL:
         accelerations = df[['ax', 'ay', 'az']].values.T
@@ -99,34 +102,37 @@ def get_vectors(df,input_type):
         gps_speed = df['speed'].values.T
         return times, gps_speed, accelerations, angular_velocities
     elif input_type == InputType.FULLINERTIAL:
-        coordinates = df[['lat', 'lon']].values.T
+        coordinates = df[['lon', 'lat']].values.T
+        altitudes = df['alt'].values.T
         accelerations = df[['ax', 'ay', 'az']].values.T
         angular_velocities = df[['gx', 'gy', 'gz']].values.T
         times = df['timestamp'].values.T
         gps_speed = df['speed'].values.T
-        return times, coordinates, gps_speed, accelerations, angular_velocities
+        return times, coordinates, altitudes, gps_speed, accelerations, angular_velocities
     elif input_type == InputType.UNMOD_FULLINERTIAL:
+        # TODO use DataFrame.interpolate
         # the input has gnss and inertial records mixed
         # filter gnss records
-        clean_coordinates = df.dropna(subset=['lat'])
+        clean_gnss_data = df.dropna(subset=['lat'])
         # interpolate coordinates
         from scipy.interpolate import interp1d
-        coords = clean_coordinates[['lat','lon']].values
-        coords_timestamp = clean_coordinates['timestamp'].values
-        coord_func = interp1d(x=coords_timestamp,y=coords.T)
+        gnss_data = clean_gnss_data[['lon', 'lat', 'alt']].values
+        gnss_data_timestamp = clean_gnss_data['timestamp'].values
+        coord_func = interp1d(x=gnss_data_timestamp, y=gnss_data.T, fill_value='extrapolate')
         # filter inertial records from dataframe
         df = df.dropna(subset=['ax'])
         accelerations = df[['ax', 'ay', 'az']].values.T
         angular_velocities = df[['gx', 'gy', 'gz']].values.T
         times = df['timestamp'].values.T
         # create coordinates vectors on inertial timestamp
-        coordinates = [coord_func(time) for time in times]
+        # TODO improve performance
+        coordinates = np.array([(coord_func(time)[0], coord_func(time)[1]) for time in times])
+        altitudes = np.array([coord_func(time)[2] for time in times])
         gps_speed = df['speed'].values.T
-        return times, coordinates, gps_speed, accelerations, angular_velocities
+        return times, coordinates, altitudes, gps_speed, accelerations, angular_velocities
 
 
-
-def parse_input(filepath,accepted_types=[type for type in InputType],sliceStart=None,sliceEnd=None):
+def parse_input(filepath, accepted_types=[input_type for input_type in InputType], slice_start=None, slice_end=None):
     """ Parse input file from filetype
 
     If the input is not one of the specified accepted format raise Expection
@@ -134,8 +140,8 @@ def parse_input(filepath,accepted_types=[type for type in InputType],sliceStart=
 
     :param filepath: string
     :param accepted_types: list of accepted input types from <InputType> enum. Default accept all types.
-    :param sliceStart: integer
-    :param sliceEnd: integer
+    :param slice_start: integer
+    :param slice_end: integer
     :return:
         times, gps_speed, accelerations, angular_velocities if input is inertial \n
         times, coordinates, gps_speed, accelerations, angular_velocities if input is fullinertial
@@ -144,26 +150,30 @@ def parse_input(filepath,accepted_types=[type for type in InputType],sliceStart=
     """
 
     # open file
-    with open(filepath,mode='r') as file:
+    with open(filepath, mode='r') as file:
         # read all content into string
         file_content = file.read()
     # remove beginning hashtag and tab
     file_content = file_content.strip("#\t")
     # i used this technique to not modify input file
     # use StringIO to simulate file read
-    stringIO = StringIO(file_content)
+    string_io = StringIO(file_content)
     # use pandas to parse tsv
-    df = pd.read_csv(stringIO,sep='\t')
+    df = pd.read_csv(string_io, sep='\t')
     # detect file type
-    input_type = detect_input_type(df,filepath)
+    input_type = detect_input_type(df, filepath)
 
-    if (input_type!=InputType.UNRECOGNIZED):
+    if input_type != InputType.UNRECOGNIZED:
         # slice input
-        df = df[sliceStart:sliceEnd]
+        if slice_start is not None and slice_start < 0:
+            raise Exception("Slice start must be positive")
+        if slice_end is not None and abs(slice_end) > df.shape[0]:
+            raise Exception("Slice end must not exceed dataframe rows")
+        df = df[slice_start:slice_end]
 
-        if (input_type not in accepted_types):
+        if input_type not in accepted_types:
             raise Exception("Not accepted format")
         # extrapolate vectors from input
-        return get_vectors(df,input_type)
+        return get_vectors(df, input_type)
     else:
         raise Exception("Unrecognized input format")
