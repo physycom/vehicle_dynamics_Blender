@@ -36,9 +36,9 @@ from src.input_manager import parse_input, InputType
 class ClearDataUtilsTest(unittest.TestCase):
 
     def setUp(self):
-        filepath = 'tests/test_fixtures/raw_inertial_data.txt'
+        filepath = 'tests/test_fixtures/crash_01.txt'
         self.times, self.gps_speed, self.accelerations, self.angular_velocities = parse_input(filepath,[InputType.INERTIAL])
-        converts_measurement_units(self.gps_speed,self.accelerations,self.angular_velocities)
+        converts_measurement_units(self.accelerations,self.angular_velocities,self.gps_speed)
 
     def test_detect_stationary_times(self):
         # only check get_stationary_times doesn't raise exceptions
@@ -65,7 +65,7 @@ class ClearDataUtilsTest(unittest.TestCase):
         accelerations = np.array([[1.0], [1.0], [1.0]])
         angular_velocities = np.array([[180.0], [180.0], [180.0]])
         gps_speed = np.array([[1.0]])
-        converts_measurement_units(gps_speed, accelerations, angular_velocities)
+        converts_measurement_units(accelerations, angular_velocities, gps_speed)
         # import scipy constants
         from scipy.constants import g, pi, kmh
         # check measurement unit conversion

@@ -53,10 +53,10 @@ def parse_input(df):
 
 
 def get_stationary_times(gps_speed):
-    """ Returns list of times where the gps speed is near zero
+    """ Returns list of index where the gps speed is near zero
 
     :param gps_speed: 1xn numpy array of gps speed in m/s
-    :return: list of tuples, each one with start and final timestamp of a stationary time
+    :return: list of tuples, each one with start and final timestamp of a stationary time index
     """
 
     speed_threshold = 0.2  # 0.2 m/s
@@ -91,7 +91,7 @@ def get_stationary_times(gps_speed):
     return stationary_times
 
 
-def converts_measurement_units(gps_speed, accelerations, angular_velocities, coordinates=None):
+def converts_measurement_units(accelerations, angular_velocities, gps_speed=None, coordinates=None):
     """ Convert physics quantity measurement unit
 
     Convert accelerations from g units to m/s^2
@@ -108,11 +108,13 @@ def converts_measurement_units(gps_speed, accelerations, angular_velocities, coo
     """
     accelerations *= constants.g
     if coordinates is not None:
+        # multiply to degree to radians constant
         coordinates *= constants.degree
     # multiply to degree to radians constant
     angular_velocities *= constants.degree
-    # multiply to km/h -> m/s constant
-    gps_speed *= constants.kmh
+    if gps_speed is not None:
+        # multiply to km/h -> m/s constant
+        gps_speed *= constants.kmh
 
 
 def normalize_timestamp(times):
@@ -218,19 +220,18 @@ def correct_z_orientation(accelerations, angular_velocities, stationary_times):
 
     accelerations, angular_velocities = align_from_g_vector(accelerations, angular_velocities, g)
 
-    # for the remaining stationary times
+    #for the remaining stationary times
     for stationary_time in stationary_times[1:]:
         # calculate bad align angle
         g = accelerations[:, stationary_time[0]:stationary_time[1]].mean(axis=1)
         bad_align_angle = arccos(dot(g, (0, 0, 1)) / norm(g))
         # if the bad align angle is greater than 2 degrees
-        if bad_align_angle > np.deg2rad(2):
+        if bad_align_angle > np.deg2rad(10):
             # print a warning
             import warnings
-            message = " \n Found additional bad z axis alignment at time {} , realigning from now  \n".format(
-                stationary_time[0])
+            message = " \n Found additional bad z axis of {} degrees alignment at time {} , realigning from now  \n".format(
+                np.rad2deg(bad_align_angle),stationary_time[0])
             warnings.warn(message)
             # re-align
             accelerations, angular_velocities = align_from_g_vector(accelerations, angular_velocities, g)
-
     return accelerations, angular_velocities
