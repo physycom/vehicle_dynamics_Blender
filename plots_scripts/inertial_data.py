@@ -30,9 +30,10 @@ from scipy.linalg import norm
 from plots_scripts.plot_utils import plot_vectors
 from src.clean_data_utils import converts_measurement_units, reduce_disturbance, \
     clear_gyro_drift, correct_z_orientation, normalize_timestamp, \
-    sign_inversion_is_necessary, get_stationary_times
+    sign_inversion_is_necessary, get_stationary_times, parse_input as correct_parse_input
 from src.input_manager import parse_input, InputType
 from src.integrate import rotate_accelerations, simps_integrate
+from src.gnss_utils import get_positions, get_speeds, align_to_world
 
 if __name__ == '__main__':
 
@@ -41,10 +42,12 @@ if __name__ == '__main__':
 
     start_time = time.time()
 
-    raw_inertial = 'tests/test_fixtures/raw_inertial_data.txt'
-    times, gps_speed, accelerations, angular_velocities = parse_input(raw_inertial, [InputType.INERTIAL])
-    converts_measurement_units(gps_speed, accelerations, angular_velocities)
-    stationary_times = get_stationary_times(gps_speed)
+    parking_fullinertial_unmod = 'tests/test_fixtures/parking.tsv'
+    times, coordinates, altitudes, gps_speed , accelerations, angular_velocities = parse_input(parking_fullinertial_unmod, [InputType.UNMOD_FULLINERTIAL])
+    converts_measurement_units(accelerations, angular_velocities, gps_speed, coordinates)
+    gnss_positions = get_positions(coordinates, altitudes)
+    real_speed = get_speeds(times, gnss_positions)
+    stationary_times = get_stationary_times(real_speed)
     # reduce accelerations disturbance
     times, accelerations = reduce_disturbance(times, accelerations)
     # reduce angular velocities disturbance
@@ -56,7 +59,7 @@ if __name__ == '__main__':
     accelerations[2] -= accelerations[2, stationary_times[0][0]:stationary_times[0][-1]].mean()
     # convert to laboratory frame of reference
     accelerations = rotate_accelerations(times, accelerations, angular_velocities)
-
+    accelerations = align_to_world(gnss_positions,accelerations,stationary_times)
     velocities = simps_integrate(times, accelerations)
 
     if sign_inversion_is_necessary(velocities):
@@ -68,20 +71,15 @@ if __name__ == '__main__':
     print("Execution time: %s seconds" % (time.time() - start_time))
 
     # plotting
-    plt.plot(gps_speed, label='gps_speed')
     velocities_norm = norm(velocities, axis=0)
+    plt.plot(real_speed, label='gnss speed')
     plt.plot(velocities_norm, label='integrated velocities norm')
+    plt.legend()
 
-    figure = plot_vectors(velocities, "velocities")
+    figure = plot_vectors(gnss_positions, "positions")
 
-    lim3d = figure.axes[1].get_xlim3d()
-    figure.axes[1].set_zlim3d(lim3d)
-    figure.axes[1].set_ylim3d(lim3d)
-
-    figure = plot_vectors(positions, "positions")
-
-    lim3d = figure.axes[1].get_xlim3d()
-    figure.axes[1].set_zlim3d(lim3d)
-    figure.axes[1].set_ylim3d(lim3d)
+    lim3d = figure.axes[1].get_xbound()
+    figure.axes[1].set_zbound(lim3d)
+    figure.axes[1].set_ybound(lim3d)
 
     plt.show()

@@ -38,11 +38,11 @@ def get_positions(coordinates, altitudes):
     """
     earth_radius = 6371000
     # create empty array for final positions
-    positions = np.zeros((3, coordinates.shape[0]))
+    positions = np.zeros((3, coordinates.shape[1]))
     # current position
-    current = np.array([coordinates[0, 0], coordinates[0, 1], altitudes[0]])
+    current = np.array([coordinates[0, 0], coordinates[1, 0], altitudes[0]])
     # iterate skipping first position that is zero
-    for i, gnss_data in enumerate(zip(coordinates[1:], altitudes[1:]), start=1):
+    for i, gnss_data in enumerate(zip(coordinates[:, 1:].T, altitudes[1:]), start=1):
         # get data from zipped tuple
         lat = gnss_data[0][0]
         lon = gnss_data[0][1]
@@ -62,3 +62,56 @@ def get_positions(coordinates, altitudes):
         positions[1, i] = positions[1, i - 1] + delta_lon
         positions[2, i] = positions[2, i - 1] + delta_alt
     return positions
+
+
+def get_speeds(times, positions):
+    """
+    Get array of speeds from position in cartesian system
+
+    :param times: 1xn numpy array of timestamp
+    :param positions: 3xn numpy array of position in cartesian system
+    :return: 1xn numpy array of speed
+    """
+
+    # remove altitude because it's unreliable
+    positions = np.delete(positions, 2, axis=0)
+    from scipy.misc import derivative
+    from scipy.interpolate import interp1d
+    positions_func = interp1d(x=times, y=positions, kind='quadratic', fill_value='extrapolate')
+    speeds = np.array([derivative(positions_func, time) for time in times])
+    speeds = abs(speeds)
+    speeds = speeds.sum(axis=1)
+    return speeds
+
+
+def align_to_world(positions, accelerations, stationary_times):
+    """
+    Align accelerations to world system (x axis going to east, y to north)
+
+    :param positions: 3xn numpy array. positions from gnss data
+    :param accelerations: 3xn numpy array
+    :param stationary_times: list of tuples
+    :return: 3xn numpy array of rotated accelerations
+    """
+
+    # iterate until a motion time (not stationary) is found
+    i = 0
+    motion_time_start = 0
+    while i < len(stationary_times):
+        motion_time_end = stationary_times[i][0]
+        # motion time must be with more than 100 elements
+        if (motion_time_end - motion_time_start > 100):
+            break
+        else:
+            motion_time_start = stationary_times[i][1]
+            i += 1
+    # get mean vector from first 100 vector of motion time
+    vector = positions[:, motion_time_start:motion_time_start + 100].mean(axis=1)
+    from scipy import arctan, sin, cos
+    # get angle of rotation
+    angle = arctan(vector[1] / vector[0])
+    new_accelerations = accelerations.copy()
+    # rotate accelerations
+    new_accelerations[0] = cos(angle) * accelerations[0] - sin(angle) * accelerations[1]
+    new_accelerations[1] = sin(angle) * accelerations[0] + cos(angle) * accelerations[1]
+    return new_accelerations

@@ -118,7 +118,7 @@ def get_vectors(df, input_type):
         from scipy.interpolate import interp1d
         gnss_data = clean_gnss_data[['lon', 'lat', 'alt']].values
         gnss_data_timestamp = clean_gnss_data['timestamp'].values
-        coord_func = interp1d(x=gnss_data_timestamp, y=gnss_data.T, fill_value='extrapolate')
+        coord_func = interp1d(x=gnss_data_timestamp, y=gnss_data.T,kind='quadratic', fill_value='extrapolate')
         # filter inertial records from dataframe
         df = df.dropna(subset=['ax'])
         accelerations = df[['ax', 'ay', 'az']].values.T
@@ -126,8 +126,8 @@ def get_vectors(df, input_type):
         times = df['timestamp'].values.T
         # create coordinates vectors on inertial timestamp
         # TODO improve performance
-        coordinates = np.array([(coord_func(time)[0], coord_func(time)[1]) for time in times])
-        altitudes = np.array([coord_func(time)[2] for time in times])
+        coordinates = np.array([(coord_func(time)[0], coord_func(time)[1]) for time in times]).T
+        altitudes = np.array([coord_func(time)[2] for time in times]).T
         gps_speed = df['speed'].values.T
         return times, coordinates, altitudes, gps_speed, accelerations, angular_velocities
 
@@ -170,7 +170,6 @@ def parse_input(filepath, accepted_types=[input_type for input_type in InputType
         if slice_end is not None and abs(slice_end) > df.shape[0]:
             raise Exception("Slice end must not exceed dataframe rows")
         df = df[slice_start:slice_end]
-
         if input_type not in accepted_types:
             raise Exception("Not accepted format")
         # extrapolate vectors from input
