@@ -24,9 +24,9 @@ Credits: Federico Bertani, Stefano Sinigardi, Alessandro Fabbri, Nico Curti
 """
 
 from unittest import TestCase
-
+import numpy as np
 from TrajectoryGenerator import Trajectory
-from src.integrate import simps_integrate, quad_integrate, trapz_integrate
+from src.integrate import simps_integrate, quad_integrate, trapz_integrate, rotate_accelerations
 
 
 def integrate_and_test(method):
@@ -92,3 +92,12 @@ class IntegrationTest(TestCase):
             ))
             # check error is below a threshold
             self.assertTrue(error.mean() < 0.005)
+
+class RotationTest(TestCase):
+
+    def test_rotation(self):
+        from scipy.constants import pi
+        angular_position = np.array([[0],[0],[pi/2]])
+        acceleration = np.array([[1],[0],[0]])
+        acceleration = rotate_accelerations(None,acceleration,angular_position)
+        self.assertTrue(np.array_equal(acceleration,np.array([[0],[1],[0]])))
