@@ -54,9 +54,10 @@ def trapz_integrate(times, vector, initial=np.zeros(3)):
     return result_vector
 
 
-def simps_integrate(times, vectors, initial=np.zeros(3)):
+def simps_integrate(times, vectors, initial=np.zeros(3), adjust_data=None, adjust_frequency=None):
     """
     Simpson integration with irregularly-spaced data
+    Optional initial data reset with custom frequency
 
     Method from paper https://scholarworks.umt.edu/cgi/viewcontent.cgi?article=1319&context=tme
     Works both with even and odd vectors
@@ -64,6 +65,8 @@ def simps_integrate(times, vectors, initial=np.zeros(3)):
     :param times: 1xn np array of timestamps
     :param vectors: 3xn np vector to integrate
     :param initial: 3x1 np array integration initial value
+    :param adjust_data: 3xn numpy array. Data to reset to each adjust frequency times.
+    :param adjust_frequency: 3xn numpy array. Frequency of adjust operations.
     :return: 3xn np array vector integrated
     """
 
@@ -121,6 +124,12 @@ def simps_integrate(times, vectors, initial=np.zeros(3)):
         delta = np.array([integrator(x[0], x[1]) for integrator in integrators])
         # reshape delta vector to make sum with current
         delta = np.reshape(delta, (3, 1))
+
+        if adjust_data is not None and adjust_frequency is not None and i % adjust_frequency == 0:
+            current[0] = adjust_data[0, i]
+            current[1] = adjust_data[1, i]
+            current = np.reshape(current, (3, 1))
+
         current = current + delta
         # save it in the next position
         result_vectors[:, i + 1] = current.T
@@ -155,6 +164,6 @@ def rotate_accelerations(times, accelerations, angular_velocities):
         rotator = np.exp(quaternion.quaternion(*np.asarray(angular_positions[:, i])) / 2)
         # create pure quaternion from acceleration vector at step i
         acc_to_rotate = quaternion.quaternion(*np.asarray(accelerations[:, i]))
-        # rotate acceleration quaternion with rotation quaternion
+        #rotate acceleration quaternion with rotation quaternion
         accelerations[:, i] = (rotator * acc_to_rotate * ~rotator).components[1:4]
     return accelerations
