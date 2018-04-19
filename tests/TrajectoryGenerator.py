@@ -166,4 +166,4 @@ class Trajectory:
 
     def plot_trajectory(self):
         """ Plots analytical trajectory"""
-        plot_vectors(self.trajectory, "analytical trajectory")
+        plot_vectors([self.trajectory], ["analytical trajectory"])

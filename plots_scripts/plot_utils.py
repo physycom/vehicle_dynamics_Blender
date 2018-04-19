@@ -27,7 +27,7 @@ import matplotlib.pyplot as plt
 # needed for 3d projection
 from mpl_toolkits.mplot3d import axes3d, Axes3D
 
-def plot_vectors(vectors, label=None):
+def plot_vectors(vectors_list, label_list=None):
     """ Plot 3xn numpy array in 2d and 3d
 
     plt.show() blocking call must be called to show all plot created whit this function
@@ -36,16 +36,22 @@ def plot_vectors(vectors, label=None):
     :return figure
     """
 
+    axis_labels = ['x','y','z']
     fig = plt.figure(figsize=plt.figaspect(0.5))
-    ax = fig.add_subplot(1, 2, 1)
-    [ax.plot(ri, label=str(i)) for i, ri in enumerate(vectors)]
-    plt.legend()
+    axes_2d = fig.add_subplot(1, 2, 1)
+    axes_3d = fig.add_subplot(1, 2, 2, projection='3d')
+    for vectors,label in zip(vectors_list,label_list):
+        # if vector is multidimensional
+        if (vectors.ndim>1):
+            [axes_2d.plot(ri, label=axis_labels[i]+" "+label ) for i, ri in enumerate(vectors)]
 
-    ax = fig.add_subplot(1, 2, 2, projection='3d')
-    ax.plot(*vectors, label=label)
-    ax.set_xlabel('x')
-    ax.set_ylabel('y')
-    ax.set_zlabel('z')
-    plt.legend()
+            axes_3d.plot(*vectors, label=label)
+            axes_3d.set_xlabel('x')
+            axes_3d.set_ylabel('y')
+            axes_3d.set_zlabel('z')
+        else:
+            axes_2d.plot(vectors,label=label)
+    axes_2d.legend()
+    axes_3d.legend()
 
     return fig

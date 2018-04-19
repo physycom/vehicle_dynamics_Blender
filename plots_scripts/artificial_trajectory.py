@@ -35,8 +35,8 @@ if __name__ == "__main__":
     trajectory = Trajectory()
     trajectory.plot_trajectory()
     accelerations = trajectory.get_analytical_accelerations()
-    plot_vectors(accelerations, "accelerations")
+    plot_vectors([accelerations], ["accelerations"])
     integrated_trajectory = get_integrated_trajectory(simps_integrate)
-    plot_vectors(integrated_trajectory, "integrated trajectory")
+    plot_vectors([integrated_trajectory], ["integrated trajectory"])
     # blocking call to show all plots
     plt.show()
