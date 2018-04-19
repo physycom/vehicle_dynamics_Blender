@@ -159,7 +159,7 @@ def clear_gyro_drift(angular_velocities, stationary_times):
     return angular_velocities
 
 
-def reduce_disturbance(times, vectors):
+def reduce_disturbance(times, vectors, window_dimension):
     """ Reduce data disturbance with a moving average
 
     The length of the window is calculated internally in function of vector length
@@ -171,7 +171,7 @@ def reduce_disturbance(times, vectors):
     """
 
     # TODO dynamically find windows dimension for 0.5 s
-    window_dimension = 20
+    window_dimension = window_dimension
     # use pandas because it has built in function of moving average
     # performance overhead is not much
     import pandas as pd

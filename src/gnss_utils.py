@@ -24,6 +24,7 @@ Credits: Federico Bertani, Stefano Sinigardi, Alessandro Fabbri, Nico Curti
 """
 
 from math import cos
+from scipy import arctan2
 
 import numpy as np
 
@@ -39,6 +40,7 @@ def get_positions(coordinates, altitudes):
     earth_radius = 6371000
     # create empty array for final positions
     positions = np.zeros((3, coordinates.shape[1]))
+    headings = np.zeros(coordinates.shape[1])
     # current position
     current = np.array([coordinates[0, 0], coordinates[1, 0], altitudes[0]])
     # iterate skipping first position that is zero
@@ -53,6 +55,7 @@ def get_positions(coordinates, altitudes):
         # use same formula but with earth horizontal radius moved to latitude
         delta_lon = earth_radius * cos(lat) * (lon - current[1])
         delta_alt = alt - current[2]
+        headings[i] = arctan2(delta_lat,delta_lon)
         # update current
         current[0] = lat
         current[1] = lon
@@ -61,27 +64,42 @@ def get_positions(coordinates, altitudes):
         positions[0, i] = positions[0, i - 1] + delta_lat
         positions[1, i] = positions[1, i - 1] + delta_lon
         positions[2, i] = positions[2, i - 1] + delta_alt
-    return positions
+    return positions, headings
 
 
-def get_speeds(times, positions):
+def get_velocities(times, positions):
     """
     Get array of speeds from position in cartesian system
 
     :param times: 1xn numpy array of timestamp
     :param positions: 3xn numpy array of position in cartesian system
-    :return: 1xn numpy array of speed
+    :return: 3xn velocites numpy array
     """
 
     # remove altitude because it's unreliable
-    positions = np.delete(positions, 2, axis=0)
+    #positions = np.delete(positions, 2, axis=0)
     from scipy.misc import derivative
     from scipy.interpolate import interp1d
     positions_func = interp1d(x=times, y=positions, kind='quadratic', fill_value='extrapolate')
     speeds = np.array([derivative(positions_func, time) for time in times])
-    speeds = abs(speeds)
-    speeds = speeds.sum(axis=1)
-    return speeds
+    return speeds.T
+
+def get_accelerations(times, velocities):
+    """
+    Get array of acceleration from velocites in cartesian system
+
+    :param times: 1xn numpy array of timestamp
+    :param velocities: 3xn numpy array of velocities in cartesian system
+    :return: 3xn numpy array of accelerations
+    """
+
+    # remove altitude because it's unreliable
+    #positions = np.delete(positions, 2, axis=0)
+    from scipy.misc import derivative
+    from scipy.interpolate import interp1d
+    velocities_func = interp1d(x=times, y=velocities, kind='quadratic', fill_value='extrapolate')
+    accelerations = np.array([derivative(velocities_func, time) for time in times])
+    return accelerations.T
 
 
 def align_to_world(positions, accelerations, stationary_times):
@@ -107,9 +125,9 @@ def align_to_world(positions, accelerations, stationary_times):
             i += 1
     # get mean vector from first 100 vector of motion time
     vector = positions[:, motion_time_start:motion_time_start + 100].mean(axis=1)
-    from scipy import arctan, sin, cos
+    from scipy import arctan, sin, cos, arctan2
     # get angle of rotation
-    angle = arctan(vector[1] / vector[0])
+    angle = arctan2(vector[1], vector[0])
     new_accelerations = accelerations.copy()
     # rotate accelerations
     new_accelerations[0] = cos(angle) * accelerations[0] - sin(angle) * accelerations[1]

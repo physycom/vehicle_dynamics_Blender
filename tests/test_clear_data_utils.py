@@ -32,6 +32,7 @@ from src.clean_data_utils import reduce_disturbance, normalize_timestamp, conver
     correct_z_orientation, clear_gyro_drift, get_stationary_times
 from src.input_manager import parse_input, InputType
 
+reduce_disturbance_window_size = 20
 
 class ClearDataUtilsTest(unittest.TestCase):
 
@@ -48,7 +49,7 @@ class ClearDataUtilsTest(unittest.TestCase):
     def test_clearGyroDrift(self):
         drift_tolerance = 0.0002
         stationary_times = get_stationary_times(self.gps_speed)
-        _, self.angular_velocities = reduce_disturbance(self.times, self.angular_velocities)
+        _, self.angular_velocities = reduce_disturbance(self.times, self.angular_velocities,reduce_disturbance_window_size)
         # get initial stationary time angular speed around x-axis
         initial_stationary_time_gx_value = self.angular_velocities[0, 0:stationary_times[0][1]].mean()
         # check there is a gyroscope drift
@@ -86,7 +87,7 @@ class ClearDataUtilsTest(unittest.TestCase):
         # get variance before reduction
         variance_before = self.angular_velocities.var(axis=1).T[0]
         # reduce disturbance
-        _, self.angular_velocities = reduce_disturbance(self.times, self.angular_velocities)
+        _, self.angular_velocities = reduce_disturbance(self.times, self.angular_velocities,reduce_disturbance_window_size)
         # check that the variance has been reduced by a factor
         variance_after = self.angular_velocities.var(axis=1).T[0]
         ratio = variance_before / variance_after
@@ -94,7 +95,7 @@ class ClearDataUtilsTest(unittest.TestCase):
 
     def test_correct_z_orientation(self):
         stationary_times = get_stationary_times(self.gps_speed)
-        _, self.accelerations = reduce_disturbance(self.times, self.accelerations)
+        _, self.accelerations = reduce_disturbance(self.times, self.accelerations,reduce_disturbance_window_size)
         threshold = 0.1
         # get average value in start stationary time
         stationary_ax_mean_before = self.accelerations[0, 0:stationary_times[0][1]].mean()
