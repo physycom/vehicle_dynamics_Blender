@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """
-Plot integrated velocities and trajectory of data from test_fixtures/raw_inertial_data.txt
+Plot integrated distance traveled
+This is abstract from rotation probles.
 
 This file is part of inertial_to_blender project,
 a Blender simulation generator from inertial sensor data on cars.
@@ -26,14 +27,14 @@ Credits: Federico Bertani, Stefano Sinigardi, Alessandro Fabbri, Nico Curti
 
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.linalg import norm
 
-from plots_scripts.plot_utils import plot_vectors
 from src.clean_data_utils import converts_measurement_units, reduce_disturbance, \
     clear_gyro_drift, correct_z_orientation, normalize_timestamp, \
-    sign_inversion_is_necessary, get_stationary_times
-from src.gnss_utils import get_positions, get_velocities, align_to_world, get_accelerations
+    get_stationary_times
+from src.gnss_utils import get_positions, get_velocities, get_accelerations
 from src.input_manager import parse_input, InputType
-from src.integrate import rotate_accelerations, simps_integrate
+from src.integrate import simps_integrate
 
 if __name__ == '__main__':
 
@@ -50,9 +51,13 @@ if __name__ == '__main__':
 
     # GNSS data handling
     gnss_positions, headings = get_positions(coordinates, altitudes)
+    gnss_distance = norm(np.array([gnss_positions[:,i]-gnss_positions[:,i-1]
+             for i,x in enumerate(gnss_positions[:,1:].T,1)]),axis=1).cumsum()
+    gnss_distance = np.reshape(gnss_distance,(1,len(gnss_distance)))
     real_velocities = get_velocities(times, gnss_positions)
 
     real_acc = get_accelerations(times, real_velocities)
+    real_acc_module = norm(real_acc,axis=0)
     real_speeds = abs(real_velocities).sum(axis=0)
 
     stationary_times = get_stationary_times(real_speeds)
@@ -60,41 +65,45 @@ if __name__ == '__main__':
     times, accelerations = reduce_disturbance(times, accelerations, window_size)
     # reduce angular velocities disturbance
     _, angular_velocities = reduce_disturbance(times, angular_velocities, window_size)
-    # truncate others array to match length of times array
     real_acc = real_acc[:,round(window_size/2):-round(window_size/2)]
     real_velocities = real_velocities[:,round(window_size/2):-round(window_size/2)]
     gnss_positions = gnss_positions[:,round(window_size/2):-round(window_size/2)]
+    gnss_distance = gnss_distance[:,round(window_size/2):-round(window_size/2)]
 
     angular_velocities = clear_gyro_drift(angular_velocities, stationary_times)
     normalize_timestamp(times)
     accelerations, angular_velocities = correct_z_orientation(accelerations, angular_velocities, stationary_times)
     # remove g
     accelerations[2] -= accelerations[2, stationary_times[0][0]:stationary_times[0][-1]].mean()
-    #convert to laboratory frame of reference
-    accelerations = rotate_accelerations(times, accelerations, angular_velocities)
-    accelerations = align_to_world(gnss_positions, accelerations, stationary_times)
-    figure = plot_vectors([np.sqrt(accelerations[0]**2+accelerations[1]**2),np.sqrt(real_acc[0]**2+real_acc[1]**2),angular_velocities[2]], ['inertial_ax','gnss_ax','omega_z'])
-    plt.show()
+    accelerations_module = norm(accelerations,axis=0)
+    accelerations_module = np.reshape(accelerations_module, (1, len(accelerations_module)))
 
+    real_velocities_module = norm(real_velocities,axis=0)
+    real_velocities_module = np.reshape(real_velocities_module, (1, len(real_velocities_module)))
     initial_speed = np.array([[gps_speed[0]],[0],[0]])
-    correct_velocities = simps_integrate(times, accelerations, initial_speed, adjust_data=real_velocities, adjust_frequency=200)
+    initial_speed_module = norm(initial_speed,axis=0)
 
-    if sign_inversion_is_necessary(correct_velocities):
-        accelerations *= -1
-        correct_velocities *= -1
+    velocities_module = simps_integrate(times, accelerations_module, initial_speed_module)
 
-    correct_position = simps_integrate(times, correct_velocities, adjust_data=gnss_positions, adjust_frequency=200)
+    correct_velocities_module = simps_integrate(times, accelerations_module, initial_speed_module, adjust_data=real_velocities_module,
+                                         adjust_frequency=40)
+
+    #if sign_inversion_is_necessary(correct_velocities):
+    #    accelerations *= -1
+    #    velocities_module
+
+    distance = simps_integrate(times, velocities_module)
 
     print("Execution time: %s seconds" % (time.time() - start_time))
 
     # plotting
-
-    figure = plot_vectors([correct_velocities, real_velocities], ['c_int_velocities', 'gnss_velocities'])
-
-    figure = plot_vectors([correct_position,gnss_positions],['correct_positions','gnss_positions'])
-
-    lim3d = figure.axes[1].get_xbound()
-    figure.axes[1].set_zbound(lim3d)
-    figure.axes[1].set_ybound(lim3d)
+    fig, ax1 = plt.subplots()
+    ax1.plot(real_acc_module.T, label='gnss accellerations')
+    ax1.plot(accelerations_module.T, label='int accellerations module')
+    ax1.legend()
+    ax2 = ax1.twinx()
+    ax2.plot(abs((real_velocities_module - velocities_module) / velocities_module).T, label='error', color='green')
+    ax2.legend()
+    plt.legend()
 
     plt.show()

@@ -102,12 +102,12 @@ def get_accelerations(times, velocities):
     return accelerations.T
 
 
-def align_to_world(positions, accelerations, stationary_times):
+def align_to_world(gnss_position, vectors, stationary_times):
     """
     Align accelerations to world system (x axis going to east, y to north)
 
-    :param positions: 3xn numpy array. positions from gnss data
-    :param accelerations: 3xn numpy array
+    :param gnss_position: 3xn numpy array. positions from gnss data
+    :param vectors: 3xn numpy array
     :param stationary_times: list of tuples
     :return: 3xn numpy array of rotated accelerations
     """
@@ -124,12 +124,15 @@ def align_to_world(positions, accelerations, stationary_times):
             motion_time_start = stationary_times[i][1]
             i += 1
     # get mean vector from first 100 vector of motion time
-    vector = positions[:, motion_time_start:motion_time_start + 100].mean(axis=1)
+    vector = gnss_position[:, motion_time_start:motion_time_start + 100].mean(axis=1)
     from scipy import arctan, sin, cos, arctan2
     # get angle of rotation
     angle = arctan2(vector[1], vector[0])
-    new_accelerations = accelerations.copy()
-    # rotate accelerations
-    new_accelerations[0] = cos(angle) * accelerations[0] - sin(angle) * accelerations[1]
-    new_accelerations[1] = sin(angle) * accelerations[0] + cos(angle) * accelerations[1]
-    return new_accelerations
+    # TODO get also angle of rotation of accellerations
+    message = "Rotation vector to {} degrees to align to world".format(np.rad2deg(angle))
+    print(message)
+    new_vectors = vectors.copy()
+    # rotate vector in xy plane
+    new_vectors[0] = cos(angle) * vectors[0] - sin(angle) * vectors[1]
+    new_vectors[1] = sin(angle) * vectors[0] + cos(angle) * vectors[1]
+    return new_vectors
