@@ -97,7 +97,8 @@ class RotationTest(TestCase):
 
     def test_rotation(self):
         from scipy.constants import pi
-        angular_position = np.array([[0],[0],[pi/2]])
-        acceleration = np.array([[1],[0],[0]])
-        acceleration = rotate_accelerations(None,acceleration,angular_position)
-        self.assertTrue(np.array_equal(acceleration,np.array([[0],[1],[0]])))
+        angular_velocity = np.array([[0,0,0],[0,0,0],[pi/2,pi/2,pi/2]])
+        times = np.array([0,1,2])
+        acceleration = np.array([[1,1],[0,0],[0,0]])
+        acceleration = rotate_accelerations(times,acceleration,angular_velocity)
+        self.assertTrue(np.array_equal(acceleration[:,1],np.array([0,1,0])))

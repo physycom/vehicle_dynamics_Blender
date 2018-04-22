@@ -54,35 +54,30 @@ def trapz_integrate(times, vector, initial=np.zeros(3)):
     return result_vector
 
 
-def simps_integrate(times, vectors, initial=np.zeros(3), adjust_data=None, adjust_frequency=None):
+def simps_integrate_delta(times, vectors):
     """
     Simpson integration with irregularly-spaced data
-    Optional initial data reset with custom frequency
+    Returns delta vector
 
     Method from paper https://scholarworks.umt.edu/cgi/viewcontent.cgi?article=1319&context=tme
     Works both with even and odd vectors
 
     :param times: 1xn np array of timestamps
     :param vectors: 3xn np vector to integrate
-    :param initial: 3x1 np array integration initial value
-    :param adjust_data: 3xn numpy array. Data to reset to each adjust frequency times.
-    :param adjust_frequency: 3xn numpy array. Frequency of adjust operations.
-    :return: 3xn np array vector integrated
+    :return: 3xn np array vector of deltas
     """
 
-    stop = vectors.shape[1]
+    rows = vectors.shape[0]
+    columns = vectors.shape[1]
     # create vector to keep results
-    result_vectors = np.zeros((3, stop))
+    deltas = np.zeros((rows, columns))
     # if vector is even
-    if stop % 2 == 0:
+    if columns % 2 == 0:
         # makes main integration on an odd number of elements
-        stop = stop - 1
-    # create vector to keep current progress value
-    current = np.reshape(initial, (3, 1))
-    # save current in first result position
-    result_vectors[:, 0] = current.T
+        columns = columns - 1
+    integrators = None
     # iterate through vector to integrate
-    for i in range(0, stop - 2):
+    for i in range(0, columns - 2):
         # create (x_i,y_i) points
         x = times[i:i + 3]
         # 3x3 array
@@ -121,49 +116,64 @@ def simps_integrate(times, vectors, initial=np.zeros(3), adjust_data=None, adjus
 
         integrators = get_parab_integrator(x, vector_locals)
         # for each integrator function get integral value only of the "first part" of the parabola
-        delta = np.array([integrator(x[0], x[1]) for integrator in integrators])
-        # reshape delta vector to make sum with current
-        delta = np.reshape(delta, (3, 1))
-
-        if adjust_data is not None and adjust_frequency is not None and i % adjust_frequency == 0:
-            current[0] = adjust_data[0, i]
-            current[1] = adjust_data[1, i]
-            current = np.reshape(current, (3, 1))
-
-        current = current + delta
-        # save it in the next position
-        result_vectors[:, i + 1] = current.T
+        deltas[:, i + 1] = np.array([integrator(x[0], x[1]) for integrator in integrators])
     # fill last element element with already calculated integrator
     # get integral value of "last part" of the parabola
-    delta = np.array([integrator(x[1], x[2]) for integrator in integrators])
-    # reshape delta vector to make sum with current
-    delta = np.reshape(delta, (3, 1))
-    current = current + delta
-    # set current velocity in last/second-last element (depends on odd/even vectors)
-    result_vectors[:, i + 2] = current.T
+    deltas[:, i + 2] = np.array([integrator(x[1], x[2]) for integrator in integrators])
     # if the vector is even the last element is still zero
-    if all(result_vectors[:, -1]) == 0:
+    if all(deltas[:, -1]) == 0:
         # interpolate a parabola for last three elements
         x = times[-3:]
         y = vectors[:, -3:]
         integrators = get_parab_integrator(x, y)
         # get integral value of "last part" of the parabola
-        delta = np.array([integrator(x[1], x[2]) for integrator in integrators])
-        # reshape delta vector to make sum with current
-        delta = np.reshape(delta, (3, 1))
-        # save in last position
-        result_vectors[:, -1] = (current + delta).T
+        deltas[:, -1] = np.array([integrator(x[1], x[2]) for integrator in integrators])
+    return deltas
+
+def simps_integrate(times, vectors, initial=None, adjust_data=None, adjust_frequency=None):
+    """
+    Optional initial data reset with custom frequency
+
+    :param times: 1xn np array of timestamps
+    :param vectors: 3xn np vector to integrate
+    :param initial: 3x1 np array integration initial value
+    :param adjust_data: 3xn numpy array. Data to reset to each adjust frequency times.
+    :param adjust_frequency: 3xn numpy array. Frequency of adjust operations.
+    :return: 3xn numpy array integrated vectors
+
+    """
+    rows = vectors.shape[0]
+    columns = vectors.shape[1]
+    delta_vectors = simps_integrate_delta(times,vectors)
+    # create vector to keep results
+    result_vectors = np.zeros((rows,columns))
+    # save initial in first result position
+    result_vectors[:, 0] = np.zeros(rows) if (initial is None) else np.reshape(initial,(1,rows))
+    # iterate delta_vector skipping first position
+    for i,delta_vector in enumerate(delta_vectors[:,1:].T,1):
+        # if adjust is needed
+        if adjust_data is not None and adjust_frequency is not None and i % adjust_frequency == 0:
+            # reset result vectors
+            if rows == 3:
+                # do not adjust z-axis (altitude is not reliable)
+                result_vectors[:-1, i] = (adjust_data[:-1, i] + result_vectors[:-1, i - 1] + delta_vectors[:-1, i]) / 2
+            elif rows == 1:
+                result_vectors[0, i] = (adjust_data[0, i] + result_vectors[0, i - 1] + delta_vectors[0, i]) / 2
+        else:
+            # cumulative sum
+            result_vectors[:,i] = result_vectors[:,i-1] + delta_vectors[:,i]
     return result_vectors
 
 
-def rotate_accelerations(times, accelerations, angular_velocities):
-    # integrate angular velocities to get angular positions
-    angular_positions = trapz_integrate(times, angular_velocities)
-    for i in range(accelerations.shape[1] - 1):
-        # create rotation quaternion from angular position at step i
-        rotator = np.exp(quaternion.quaternion(*np.asarray(angular_positions[:, i])) / 2)
+def rotate_accelerations(times, accelerations, angular_velocities, initial_angular_position=np.array([[0],[0],[0]])):
+    delta_thetas = simps_integrate_delta(times,angular_velocities)
+    initial_quaternion = np.exp(quaternion.quaternion(*np.asarray(initial_angular_position)) / 2)
+    quaternions = np.array([np.exp(quaternion.quaternion(*np.asarray(delta_theta)) / 2) for delta_theta in delta_thetas.T])
+    np.insert(quaternions,0,initial_quaternion)
+    quaternions = quaternions.cumprod()
+    for i in range(accelerations.shape[1]):
         # create pure quaternion from acceleration vector at step i
         acc_to_rotate = quaternion.quaternion(*np.asarray(accelerations[:, i]))
-        #rotate acceleration quaternion with rotation quaternion
-        accelerations[:, i] = (rotator * acc_to_rotate * ~rotator).components[1:4]
+        # rotate acceleration quaternion with rotation quaternion
+        accelerations[:, i] = (quaternions[i] * acc_to_rotate * ~quaternions[i]).components[1:4]
     return accelerations
