@@ -124,15 +124,17 @@ def align_to_world(gnss_position, vectors, stationary_times):
             motion_time_start = stationary_times[i][1]
             i += 1
     # get mean vector from first 100 vector of motion time
-    vector = gnss_position[:, motion_time_start:motion_time_start + 100].mean(axis=1)
-    from scipy import arctan, sin, cos, arctan2
+    gnss_start = gnss_position[:, motion_time_start:motion_time_start + 100].mean(axis=1)
+    vector_start = vectors[:, motion_time_start:motion_time_start + 100].mean(axis=1)
+    from scipy import sin, cos, arctan2
     # get angle of rotation
-    angle = arctan2(vector[1], vector[0])
-    # TODO get also angle of rotation of accellerations
-    message = "Rotation vector to {} degrees to align to world".format(np.rad2deg(angle))
+    angle_gnss = arctan2(gnss_start[1], gnss_start[0])
+    ancle_vector = arctan2(vector_start[1],vector_start[0])
+    rotation_angle = angle_gnss-ancle_vector
+    message = "Rotation vector to {} degrees to align to world".format(np.rad2deg(rotation_angle))
     print(message)
     new_vectors = vectors.copy()
     # rotate vector in xy plane
-    new_vectors[0] = cos(angle) * vectors[0] - sin(angle) * vectors[1]
-    new_vectors[1] = sin(angle) * vectors[0] + cos(angle) * vectors[1]
+    new_vectors[0] = cos(rotation_angle) * vectors[0] - sin(rotation_angle) * vectors[1]
+    new_vectors[1] = sin(rotation_angle) * vectors[0] + cos(rotation_angle) * vectors[1]
     return new_vectors
