@@ -12,6 +12,7 @@ install:
   - conda update -q conda
   - conda env create --file requirements.yml -n test-environment python=$TRAVIS_PYTHON_VERSION
   - source activate test-environment
+  - export PYTHONPATH=$PWD
 
 script:
-  - python -m unittest discover -s tests
+  - python -m unittest discover -s tests -t tests
