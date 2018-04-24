@@ -73,33 +73,39 @@ def get_velocities(times, positions):
 
     :param times: 1xn numpy array of timestamp
     :param positions: 3xn numpy array of position in cartesian system
-    :return: 3xn velocites numpy array
+    :return: 2xn velocites numpy array
     """
 
     # remove altitude because it's unreliable
-    #positions = np.delete(positions, 2, axis=0)
-    from scipy.misc import derivative
-    from scipy.interpolate import interp1d
-    positions_func = interp1d(x=times, y=positions, kind='quadratic', fill_value='extrapolate')
-    speeds = np.array([derivative(positions_func, time) for time in times])
-    return speeds.T
+    positions = np.delete(positions, 2, axis=0)
+    velocities = np.zeros((2,positions.shape[1]))
+    win_size = 320
+    for i in range(win_size+1,positions.shape[1],win_size):
+        delta_x = positions[0,i]-positions[0,i-win_size]
+        delta_y = positions[0, i] - positions[0, i - win_size]
+        delta_t = times[i] - times[i-win_size]
+        velocities[0,i-win_size:i] = delta_x/delta_t
+        velocities[1,i-win_size:i] = delta_y/delta_t
+    return velocities
 
 def get_accelerations(times, velocities):
     """
     Get array of acceleration from velocites in cartesian system
 
     :param times: 1xn numpy array of timestamp
-    :param velocities: 3xn numpy array of velocities in cartesian system
-    :return: 3xn numpy array of accelerations
+    :param velocities: 2xn numpy array of velocities in 2d cartesian system
+    :return: 2xn numpy array of accelerations
     """
 
-    # remove altitude because it's unreliable
-    #positions = np.delete(positions, 2, axis=0)
-    from scipy.misc import derivative
-    from scipy.interpolate import interp1d
-    velocities_func = interp1d(x=times, y=velocities, kind='quadratic', fill_value='extrapolate')
-    accelerations = np.array([derivative(velocities_func, time) for time in times])
-    return accelerations.T
+    accelerations = np.zeros((2, velocities.shape[1]))
+    win_size = 320
+    for i in range(win_size + 1, velocities.shape[1], win_size):
+        delta_x = velocities[0, i] - velocities[0, i - win_size]
+        delta_y = velocities[0, i] - velocities[0, i - win_size]
+        delta_t = times[i] - times[i - win_size]
+        accelerations[0, i - win_size:i] = delta_x / delta_t
+        accelerations[1, i - win_size:i] = delta_y / delta_t
+    return accelerations
 
 
 def align_to_world(gnss_position, vectors, stationary_times):
