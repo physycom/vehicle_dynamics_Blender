@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """
 Plot integrated distance traveled
-This is abstract from rotation probles.
+This is abstract from rotation problems.
 
 This file is part of inertial_to_blender project,
 a Blender simulation generator from inertial sensor data on cars.
@@ -45,26 +45,32 @@ if __name__ == '__main__':
 
     start_time = time.time()
 
+    #input pats
     parking_fullinertial_unmod = 'tests/test_fixtures/parking.tsv'
+    # parse input
     times, coordinates, altitudes, gps_speed , accelerations, angular_velocities = parse_input(parking_fullinertial_unmod, [InputType.UNMOD_FULLINERTIAL])
+
     converts_measurement_units(accelerations, angular_velocities, gps_speed, coordinates)
 
     # GNSS data handling
     gnss_positions, headings = get_positions(coordinates, altitudes)
     gnss_distance = norm(np.array([gnss_positions[:,i]-gnss_positions[:,i-1]
              for i,x in enumerate(gnss_positions[:,1:].T,1)]),axis=1).cumsum()
+    # insert initial distance
+    gnss_distance = np.insert(gnss_distance,0,0)
+    # reshape to 1xn shape
     gnss_distance = np.reshape(gnss_distance,(1,len(gnss_distance)))
     real_velocities = get_velocities(times, gnss_positions)
-
     real_acc = get_accelerations(times, real_velocities)
-    real_acc_module = norm(real_acc,axis=0)
-    real_speeds = abs(real_velocities).sum(axis=0)
 
-    stationary_times = get_stationary_times(real_speeds)
+    real_velocities_module = norm(real_velocities,axis=0)
+
+    stationary_times = get_stationary_times(real_velocities_module)
     # reduce accelerations disturbance
     times, accelerations = reduce_disturbance(times, accelerations, window_size)
     # reduce angular velocities disturbance
     _, angular_velocities = reduce_disturbance(times, angular_velocities, window_size)
+    # resize other arrays after reduce disturbance
     real_acc = real_acc[:,round(window_size/2):-round(window_size/2)]
     real_velocities = real_velocities[:,round(window_size/2):-round(window_size/2)]
     gnss_positions = gnss_positions[:,round(window_size/2):-round(window_size/2)]
@@ -75,35 +81,36 @@ if __name__ == '__main__':
     accelerations, angular_velocities = correct_z_orientation(accelerations, angular_velocities, stationary_times)
     # remove g
     accelerations[2] -= accelerations[2, stationary_times[0][0]:stationary_times[0][-1]].mean()
+
     accelerations_module = norm(accelerations,axis=0)
     accelerations_module = np.reshape(accelerations_module, (1, len(accelerations_module)))
 
-    real_velocities_module = norm(real_velocities,axis=0)
+    real_acc_module = norm(real_acc, axis=0)
+
     real_velocities_module = np.reshape(real_velocities_module, (1, len(real_velocities_module)))
-    initial_speed = np.array([[gps_speed[0]],[0],[0]])
-    initial_speed_module = norm(initial_speed,axis=0)
 
-    velocities_module = simps_integrate(times, accelerations_module, initial_speed_module)
+    correct_velocities_module = simps_integrate(times, accelerations_module, real_velocities_module[0,0], adjust_data=real_velocities_module,
+                                         adjust_frequency=1)
 
-    correct_velocities_module = simps_integrate(times, accelerations_module, initial_speed_module, adjust_data=real_velocities_module,
-                                         adjust_frequency=40)
-
-    #if sign_inversion_is_necessary(correct_velocities):
-    #    accelerations *= -1
-    #    velocities_module
-
-    distance = simps_integrate(times, velocities_module)
+    correct_distance = simps_integrate(times, correct_velocities_module, adjust_data=gnss_distance, adjust_frequency=1)
 
     print("Execution time: %s seconds" % (time.time() - start_time))
 
     # plotting
-    fig, ax1 = plt.subplots()
-    ax1.plot(real_acc_module.T, label='gnss accellerations')
-    ax1.plot(accelerations_module.T, label='int accellerations module')
+
+    fig1, ax1 = plt.subplots()
+    ax1.plot(real_acc_module,label='acc gnss')
+    ax1.plot(accelerations_module.T,label='acc sensor')
     ax1.legend()
-    ax2 = ax1.twinx()
-    ax2.plot(abs((real_velocities_module - velocities_module) / velocities_module).T, label='error', color='green')
+
+    fig, ax2 = plt.subplots()
+    ax2.plot(real_velocities_module.T, label='speed gss')
+    ax2.plot(correct_velocities_module.T, label='speed int')
     ax2.legend()
-    plt.legend()
+
+    fig, ax2 = plt.subplots()
+    ax2.plot(gnss_distance.T, label='distance gnss')
+    ax2.plot(correct_distance.T, label='distance int')
+    ax2.legend()
 
     plt.show()

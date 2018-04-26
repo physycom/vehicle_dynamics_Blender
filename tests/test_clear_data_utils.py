@@ -28,7 +28,7 @@ import pandas as pd
 import numpy as np
 
 from src.clean_data_utils import reduce_disturbance, normalize_timestamp, converts_measurement_units, \
-    correct_z_orientation, clear_gyro_drift, get_stationary_times
+    correct_z_orientation, clear_gyro_drift, get_stationary_times, get_xy_bad_align_count, correct_xy_orientation
 from src.input_manager import parse_input, InputType
 
 reduce_disturbance_window_size = 20
@@ -111,16 +111,17 @@ class ClearDataUtilsTest(unittest.TestCase):
             assert stationary_ax_mean_after < stationary_ax_mean_before
             assert stationary_ay_mean_after < stationary_ay_mean_before
 
- def test_correct_xy_orientation(self):
+    def test_correct_xy_orientation(self):
+        stationary_times = get_stationary_times(self.gps_speed)
         # reduce disturbance
-        _, self.accelerations = reduce_disturbance(self.times, self.accelerations)
-        _, self.angular_velocities = reduce_disturbance(self.times, self.angular_velocities)
+        _, self.accelerations = reduce_disturbance(self.times, self.accelerations, reduce_disturbance_window_size)
+        _, self.angular_velocities = reduce_disturbance(self.times, self.angular_velocities, reduce_disturbance_window_size)
         # convert measurement units
-        converts_measurement_units(self.gps_speed, self.accelerations, self.angular_velocities)
+        converts_measurement_units(self.accelerations, self.angular_velocities, self.gps_speed, )
         # align on z-axis
-        self.accelerations, self.angular_velocities = correct_z_orientation(self.accelerations, self.angular_velocities)
+        self.accelerations, self.angular_velocities = correct_z_orientation(self.accelerations, self.angular_velocities, stationary_times)
         # clear gyroscope drift
-        self.angular_velocities = clear_gyro_drift(self.angular_velocities)
+        self.angular_velocities = clear_gyro_drift(self.angular_velocities,stationary_times)
         # get number of records that means that there is is a bad xy alignment
         bad_align_count_len_before = get_xy_bad_align_count(self.accelerations, self.angular_velocities)
         # check that there is a bad alignment
@@ -130,4 +131,4 @@ class ClearDataUtilsTest(unittest.TestCase):
         # re-get number of records that means that there is is a bad xy alignment
         bad_align_count_len_after = get_xy_bad_align_count(self.accelerations, self.angular_velocities)
         # these records should be now less than before
-        assert bad_align_count_len_after < bad_align_count_len_before
+        assert bad_align_count_len_after <= bad_align_count_len_before

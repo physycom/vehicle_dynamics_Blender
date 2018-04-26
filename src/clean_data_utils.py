@@ -32,10 +32,10 @@ Credits: Federico Bertani, Stefano Sinigardi, Alessandro Fabbri, Nico Curti
 """
 
 import numpy as np
-from scipy import constants
-from scipy.linalg import norm
-from scipy import cross, dot, arccos, arctan, cos, sin
 import quaternion
+from scipy import constants
+from scipy import cross, dot, arccos, arctan2, cos, sin, pi
+from scipy.linalg import norm
 
 
 def parse_input(df):
@@ -88,6 +88,7 @@ def get_stationary_times(gps_speed):
     # handle case where stationary times not ends before data ends
     if first_true != math.inf and last_true != math.inf:
         stationary_times.append((first_true, last_true))
+    # TODO raise exception if there are no stationary times
     return stationary_times
 
 
@@ -190,9 +191,9 @@ def reduce_disturbance(times, vectors, window_dimension):
 
 # threshold above which acceleration along x and y axis are considered
 axy_threshold = 0.2
-max_axy_threshold = 1
+max_axy_threshold = 10
 # threshold above which acceleration along x and y axis are considered
-g_z_threshold = 0.01
+g_z_threshold = 0.06
 
 
 def get_xy_bad_align_count(accelerations, angular_velocities):
@@ -206,16 +207,10 @@ def get_xy_bad_align_count(accelerations, angular_velocities):
     """
     # get all 4 +- combinations
     x1, x2, x3, x4 = get_bad_alignment_vectors(accelerations, angular_velocities)
-    print("-------get xy bad align count-----")
-    for i,x in enumerate([x1,x2,x3,x4]):
-        print("combination {} count: {}".format(i,x.shape[1]))
-    print("sum is {}".format(sum(map(lambda x:x.shape[1],[x1,x2,x3,x4]))))
-    return sum(map(lambda x:x.shape[1],[x1,x2,x3,x4]))
+    return sum(map(lambda x: x.shape[1] if len(x) > 0 else 0, [x1, x2, x3, x4]))
 
 
 def get_bad_alignment_vectors(accelerations, angular_velocities):
-    accelerations = accelerations[:, 22000:24000]
-    angular_velocities = angular_velocities[:, 22000:24000]
     # boolean array of array position where x accelerations are above threshold
     ax_over_threshold = np.logical_and(accelerations[0] > axy_threshold, accelerations[0] < max_axy_threshold)
     ax_below_threshold = np.logical_and(accelerations[0] < -axy_threshold, accelerations[0] > -max_axy_threshold)
@@ -224,11 +219,41 @@ def get_bad_alignment_vectors(accelerations, angular_velocities):
     ay_below_threshold = np.logical_and(accelerations[1] < -axy_threshold, accelerations[1] > -max_axy_threshold)
     # boolean array of array position where z angular speed are below threshold
     gx_below_threshold = abs(angular_velocities[2]) < g_z_threshold
+
+    def filter_contiguous(vector, conditions):
+        """ Finds 100 contiguous vectors where all the given conditions are true
+
+        :param vector: numpy columns vector
+        :param conditions: list of boolean arrays with same length of vector
+        :return vector: at least 100 long subset of vector where conditions apply
+        """
+        import math
+        start = math.inf
+        end = math.inf
+        from functools import reduce
+        for i, _ in enumerate(vector.T):
+            conditions_on_i = map(lambda x: x[i], conditions)
+            # logical AND on all conditions list
+            condition_value = reduce(lambda acc, x: acc & x, conditions_on_i)
+            if start == math.inf and condition_value:
+                start = i
+            if start != math.inf and condition_value:
+                end = i
+            if start != math.inf and end != math.inf and not condition_value:
+                if end - start > 100:
+                    break
+                start = math.inf
+                end = math.inf
+        if start != math.inf and end != math.inf:
+            return vector[:, start:end]
+        else:
+            return np.array([])
+
     # operate logical AND element-wise to get elements
-    x1 = accelerations[:, ax_over_threshold & ay_over_threshold & gx_below_threshold]
-    x2 = accelerations[:, ax_below_threshold & ay_over_threshold & gx_below_threshold]
-    x3 = accelerations[:, ax_over_threshold & ay_below_threshold & gx_below_threshold]
-    x4 = accelerations[:, ax_below_threshold & ay_below_threshold & gx_below_threshold]
+    x1 = filter_contiguous(accelerations, [ax_over_threshold, ay_over_threshold, gx_below_threshold])
+    x2 = filter_contiguous(accelerations, [ax_below_threshold, ay_over_threshold, gx_below_threshold])
+    x3 = filter_contiguous(accelerations, [ax_over_threshold, ay_below_threshold, gx_below_threshold])
+    x4 = filter_contiguous(accelerations, [ax_below_threshold, ay_below_threshold, gx_below_threshold])
     return x1, x2, x3, x4
 
 
@@ -237,27 +262,35 @@ def correct_xy_orientation(accelerations, angular_velocities):
 
     :param accelerations: 3xn numpy array angular velocities
     :param angular_velocities: 3xn numpy array angular velocities
+
+    :return accelerations: 3xn numpy array
     """
-    #TODo find near points?
-    print("initial sum {}".format(get_xy_bad_align_count(accelerations, angular_velocities)))
+
     def rotatexy(bad_align_proof):
-        new_accellerations = accelerations.copy()
-        if bad_align_proof.shape[1]>0:
+        new_accelerations = accelerations.copy()
+        if len(bad_align_proof) > 0 and bad_align_proof.shape[1] > 0:
             # get first vector
             vec = bad_align_proof.mean(axis=1)
             # get angle and negate it to remove rotation
-            angle = -arctan(vec[1] / vec[0])
+            angle = -arctan2(vec[1], vec[0])
+            if (vec[1] > 0 and vec[0] < 0):
+                angle = pi + angle
+            elif (vec[1] < 0 and vec[0] < 0):
+                angle = -(pi + angle)
             # use new var instead of inplace so when we rotate y we don't use the rotated x but the old one
-            new_accellerations[0] = cos(angle) * accelerations[0] - sin(angle) * accelerations[1]
-            new_accellerations[1] = sin(angle) * accelerations[0] + cos(angle) * accelerations[1]
+            new_accelerations[0] = cos(angle) * accelerations[0] - sin(angle) * accelerations[1]
+            new_accelerations[1] = sin(angle) * accelerations[0] + cos(angle) * accelerations[1]
         # now set new arrays
-        print("calling get xy bad align count for trying combination")
-        return get_xy_bad_align_count(new_accellerations, angular_velocities), new_accellerations
+        return get_xy_bad_align_count(new_accelerations, angular_velocities), new_accelerations
 
-    x1, x2, x3, x4 = get_bad_alignment_vectors(accelerations,angular_velocities)
-    best_bad_vector = min([x1,x2,x3,x4],key=lambda x:rotatexy(x)[0])
+    print("initial bad align sum {}".format(get_xy_bad_align_count(accelerations, angular_velocities)))
+    # get bad align vector for all +- combinations
+    x1, x2, x3, x4 = get_bad_alignment_vectors(accelerations, angular_velocities)
+    # get best vector than minimize sum of bad align vectors after rotations
+    best_bad_vector = min([x1, x2, x3, x4], key=lambda x: rotatexy(x)[0])
+    # rotate accelerations
     _, accelerations = rotatexy(best_bad_vector)
-    print("final sum {}".format(get_xy_bad_align_count(accelerations, angular_velocities)))
+    print("final bad align sum {}".format(get_xy_bad_align_count(accelerations, angular_velocities)))
     return accelerations
 
     # TODO find if there are others times where the condition returns
@@ -297,7 +330,7 @@ def correct_z_orientation(accelerations, angular_velocities, stationary_times):
 
     accelerations, angular_velocities = align_from_g_vector(accelerations, angular_velocities, g)
 
-    #for the remaining stationary times
+    # for the remaining stationary times
     for stationary_time in stationary_times[1:]:
         # calculate bad align angle
         g = accelerations[:, stationary_time[0]:stationary_time[1]].mean(axis=1)
@@ -306,8 +339,9 @@ def correct_z_orientation(accelerations, angular_velocities, stationary_times):
         if bad_align_angle > np.deg2rad(10):
             # print a warning
             import warnings
-            message = " \n Found additional bad z axis of {} degrees alignment at time {} , realigning from now  \n".format(
-                np.rad2deg(bad_align_angle),stationary_time[0])
+            message = " \n Found additional bad z axis of {} degrees alignment at time {} , " \
+                      "realigning from now  \n".format(
+                np.rad2deg(bad_align_angle), stationary_time[0])
             warnings.warn(message)
             # re-align
             accelerations, angular_velocities = align_from_g_vector(accelerations, angular_velocities, g)

@@ -156,9 +156,11 @@ def simps_integrate(times, vectors, initial=None, adjust_data=None, adjust_frequ
             # reset result vectors
             if rows == 3:
                 # do not adjust z-axis (altitude is not reliable)
-                result_vectors[:-1, i] = (adjust_data[:-1, i] + result_vectors[:-1, i - 1] + delta_vectors[:-1, i]) / 2
+                result_vectors[:-1, i] = \
+                    adjust_data[:-1, i]*0.01 + (result_vectors[:-1, i - 1] + delta_vectors[:-1, i])*0.99
             elif rows == 1:
-                result_vectors[0, i] = (adjust_data[0, i] + result_vectors[0, i - 1] + delta_vectors[0, i]) / 2
+                result_vectors[0, i] = \
+                    adjust_data[0, i]*0.01 + (result_vectors[0, i - 1] + delta_vectors[0, i])*0.99
         else:
             # cumulative sum
             result_vectors[:,i] = result_vectors[:,i-1] + delta_vectors[:,i]

@@ -73,7 +73,7 @@ def get_velocities(times, positions):
 
     :param times: 1xn numpy array of timestamp
     :param positions: 3xn numpy array of position in cartesian system
-    :return: 2xn velocites numpy array
+    :return: 2xn velocities numpy array
     """
 
     # remove altitude because it's unreliable
@@ -82,7 +82,7 @@ def get_velocities(times, positions):
     win_size = 320
     for i in range(win_size+1,positions.shape[1],win_size):
         delta_x = positions[0,i]-positions[0,i-win_size]
-        delta_y = positions[0, i] - positions[0, i - win_size]
+        delta_y = positions[1, i] - positions[1, i - win_size]
         delta_t = times[i] - times[i-win_size]
         velocities[0,i-win_size:i] = delta_x/delta_t
         velocities[1,i-win_size:i] = delta_y/delta_t
@@ -90,7 +90,7 @@ def get_velocities(times, positions):
 
 def get_accelerations(times, velocities):
     """
-    Get array of acceleration from velocites in cartesian system
+    Get array of acceleration from velocities in cartesian system
 
     :param times: 1xn numpy array of timestamp
     :param velocities: 2xn numpy array of velocities in 2d cartesian system
@@ -101,7 +101,7 @@ def get_accelerations(times, velocities):
     win_size = 320
     for i in range(win_size + 1, velocities.shape[1], win_size):
         delta_x = velocities[0, i] - velocities[0, i - win_size]
-        delta_y = velocities[0, i] - velocities[0, i - win_size]
+        delta_y = velocities[1, i] - velocities[1, i - win_size]
         delta_t = times[i] - times[i - win_size]
         accelerations[0, i - win_size:i] = delta_x / delta_t
         accelerations[1, i - win_size:i] = delta_y / delta_t
@@ -121,22 +121,26 @@ def align_to_world(gnss_position, vectors, stationary_times):
     # iterate until a motion time (not stationary) is found
     i = 0
     motion_time_start = 0
-    while i < len(stationary_times):
-        motion_time_end = stationary_times[i][0]
-        # motion time must be with more than 100 elements
-        if (motion_time_end - motion_time_start > 100):
+    size = stationary_times[0][0]
+    motion_time_end = stationary_times[0][0]
+    # find the first 100 records in motion times
+    while size < 100:
+        i += 1
+        increase = stationary_times[i][0] - stationary_times[i - 1][1]
+        if increase>100:
+            # TODO handle case where dataset is smaller
+            motion_time_end = stationary_times[i-1][0] + 100
             break
         else:
-            motion_time_start = stationary_times[i][1]
-            i += 1
+            size += increase
     # get mean vector from first 100 vector of motion time
-    gnss_start = gnss_position[:, motion_time_start:motion_time_start + 100].mean(axis=1)
+    gnss_start = gnss_position[:, motion_time_start:motion_time_end].mean(axis=1)
     vector_start = vectors[:, motion_time_start:motion_time_start + 100].mean(axis=1)
     from scipy import sin, cos, arctan2
     # get angle of rotation
     angle_gnss = arctan2(gnss_start[1], gnss_start[0])
-    ancle_vector = arctan2(vector_start[1],vector_start[0])
-    rotation_angle = angle_gnss-ancle_vector
+    angle_vector = arctan2(vector_start[1],vector_start[0])
+    rotation_angle = angle_gnss-angle_vector
     message = "Rotation vector to {} degrees to align to world".format(np.rad2deg(rotation_angle))
     print(message)
     new_vectors = vectors.copy()
