@@ -23,7 +23,7 @@ Credits: Federico Bertani, Stefano Sinigardi, Alessandro Fabbri, Nico Curti
 
 """
 
-from enum import Enum, auto, unique
+from enum import Enum, unique
 from io import StringIO
 
 import numpy as np
@@ -32,14 +32,14 @@ import pandas as pd
 
 @unique
 class InputType(Enum):
-    ACCELERATION = auto()
-    FULLINERTIAL = auto()
-    GNSS = auto()
-    GYROSCOPE = auto()
-    INERTIAL = auto()
-    UNMOD_FULLINERTIAL = auto()
-    UNMOD_INERTIAL = auto()
-    UNRECOGNIZED = auto()
+    ACCELERATION = 1
+    FULLINERTIAL = 2
+    GNSS = 3
+    GYROSCOPE = 4
+    INERTIAL = 5
+    UNMOD_FULLINERTIAL = 6
+    UNMOD_INERTIAL = 7
+    UNRECOGNIZED = 8
 
 
 def detect_input_type(df, filepath):
