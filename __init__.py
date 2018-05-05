@@ -9,6 +9,8 @@ import os, bpy, urllib.request, sys
 from bpy.props import StringProperty, PointerProperty
 from bpy.types import PropertyGroup
 
+from .src.__main__ import get_positions_times
+
 bpy.types.Scene.datasetPath = StringProperty(
     name="Dataset path",
     description=":",
@@ -62,9 +64,23 @@ class AnimateObject(bpy.types.Operator):
 
     def execute(self, context):
         scene = context.scene
-
+        fps = bpy.context.scene.render.fps
         obj = scene.objects.active
-
+        positions, times = get_positions_times(scene.datasetPath)
+        bpy.context.scene.frame_end = times[-1] * fps
+        obj.animation_data_clear()
+        # create animation data
+        obj.animation_data_create()
+        # create a new animation data action
+        obj.animation_data.action = bpy.data.actions.new(name="MyAction")
+        positions_lenght = positions.shape[1]
+        # create f-curve for each axis
+        for index in range(3):
+            fcurve = obj.animation_data.action.fcurves.new(data_path="location", index=index)
+            fcurve.keyframe_points.add(positions_lenght)
+            for i in range(0, positions_lenght):
+                fcurve.keyframe_points[i].interpolation = 'CONSTANT'
+                fcurve.keyframe_points[i].co = times[i] * fps, positions[index,i]
         return {'FINISHED'}
 
 

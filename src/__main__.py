@@ -1,11 +1,11 @@
 import numpy as np
 
-from clean_data_utils import converts_measurement_units, reduce_disturbance, \
+from .clean_data_utils import converts_measurement_units, reduce_disturbance, \
     clear_gyro_drift, correct_z_orientation, normalize_timestamp, \
     sign_inversion_is_necessary, get_stationary_times, correct_xy_orientation
-from gnss_utils import get_positions, get_velocities, align_to_world, get_accelerations
-from input_manager import parse_input, InputType
-from integrate import rotate_accelerations, simps_integrate
+from .gnss_utils import get_positions, get_velocities, align_to_world, get_accelerations
+from .input_manager import parse_input, InputType
+from .integrate import rotate_accelerations, simps_integrate
 
 
 def get_positions_times(path):
