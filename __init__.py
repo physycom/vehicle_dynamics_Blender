@@ -6,10 +6,10 @@ bl_info = {
 }
 
 import os, bpy, urllib.request, sys
+from pathlib import Path
+from subprocess import call
 from bpy.props import StringProperty, PointerProperty
 from bpy.types import PropertyGroup
-
-from .src.__main__ import get_positions_times
 
 bpy.types.Scene.datasetPath = StringProperty(
     name="Dataset path",
@@ -63,6 +63,7 @@ class AnimateObject(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
+        from .src.__main__ import get_positions_times
         scene = context.scene
         fps = bpy.context.scene.render.fps
         obj = scene.objects.active
@@ -84,23 +85,44 @@ class AnimateObject(bpy.types.Operator):
         return {'FINISHED'}
 
 
+def call_system_command(command):
+    try:
+        retcode = call(command, shell=True)
+        if retcode < 0:
+            print("Child was terminated by signal", -retcode, file=sys.stderr)
+        else:
+            print("Child returned", retcode, file=sys.stderr)
+    except OSError as e:
+        print("Execution failed:", e, file=sys.stderr)
+
 def register():
     # TODO handle permission errors
-    addon_path = os.path.dirname(os.path.realpath(__file__))
-    blender_path = os.path.dirname(sys.executable)
+    addon_path = str(Path(__file__).parent)
+    print("Addon path "+addon_path)
+    blender_path = str(Path(sys.executable).parent)
+    print("Blender path "+blender_path)
     # TODO detect version, make more flexible
-    blender_python_dir = blender_path + "/2.79/python/bin"
-    if not os.path.isfile(blender_python_dir + "/pip"):
+    blender_python_dir = os.path.join(blender_path,"2.79","python","bin")
+    if not ( os.path.exists(os.path.join(blender_python_dir,"pip")) or os.path.exists(os.path.join(blender_path,"2.79","python","scripts","pip3.exe"))):
+        print("Downloading pip")
         # download get pip
         urllib.request.urlretrieve("https://bootstrap.pypa.io/get-pip.py",
-                                   filename=addon_path + "/get_pip.py")
-        os.system(blender_python_dir + "/python3.5m " + addon_path + "/get_pip.py")
-    else:
-        try:
-            import scipy
-        except ImportError:
-            # TODO use something more secure
-            os.system(blender_python_dir + "/pip3 install -r " + addon_path + "/requirements.txt")
+                                   filename=os.path.join(addon_path,"get_pip.py"))
+        if (os.path.exists(os.path.join(blender_python_dir,"python3.5m"))):
+            command = r'"{}" "{}"'.format(str(Path(blender_python_dir,"python3.5m")),str(Path(addon_path,"get_pip.py")))
+        elif os.path.exists(os.path.join(blender_python_dir,"python.exe")):
+            command = r'"{}" "{}"'.format(str(Path(blender_python_dir,"python.exe")),str(Path(addon_path,"get_pip.py")))	
+        print("Command: "+command)
+        call_system_command(command)
+    try:
+        import scipy
+    except ImportError:
+        print("Installing packets")
+        if (os.path.exists(os.path.join(blender_python_dir,"pip3"))):
+            command = r'"{}" install -r "{}"'.format(os.path.join(blender_python_dir,"pip3"),os.path.join(addon_path,"requirements.txt"))
+        elif os.path.exists(os.path.join(blender_path,"2.79","python","scripts","pip3.exe")):
+            command = r'"{}" install -r "{}"'.format(os.path.join(blender_path,"2.79","python","scripts","pip3.exe"),os.path.join(addon_path,"requirements.txt"))
+        call_system_command(command)
     # install
     bpy.utils.register_class(LoadDataset)
     bpy.utils.register_class(AnimateObject)
