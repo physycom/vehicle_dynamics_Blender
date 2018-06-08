@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """
 This module expose routines to create car path from accelerometer
 and gyroscope data by numerical integration.
@@ -27,7 +26,9 @@ Credits: Federico Bertani, Stefano Sinigardi, Alessandro Fabbri, Nico Curti
 """
 
 import numpy as np
-import quaternion
+import quaternion as numpy_quaternion
+from pyquaternion import Quaternion
+
 
 
 def quad_integrate(times, vector, initial=np.zeros(3)):
@@ -167,15 +168,34 @@ def simps_integrate(times, vectors, initial=None, adjust_data=None, adjust_frequ
     return result_vectors
 
 
-def rotate_accelerations(times, accelerations, angular_velocities, initial_angular_position=np.array([[0],[0],[0]])):
+def rotate_accelerations_numpyquaternion(times, accelerations, angular_velocities, initial_angular_position=np.array([[1], [0], [0]])):
     delta_thetas = simps_integrate_delta(times,angular_velocities)
-    initial_quaternion = np.exp(quaternion.quaternion(*np.asarray(initial_angular_position)) / 2)
-    quaternions = np.array([np.exp(quaternion.quaternion(*np.asarray(delta_theta)) / 2) for delta_theta in delta_thetas.T])
-    np.insert(quaternions,0,initial_quaternion)
-    quaternions = quaternions.cumprod()
+    import time
+    start_time = time.time()
+    initial_quaternion = np.exp(numpy_quaternion.quaternion(*np.asarray(initial_angular_position)) / 2)
+    quaternions = np.array([np.exp(numpy_quaternion.quaternion(*np.asarray(delta_theta)) / 2) for delta_theta in delta_thetas[:,1:].T])
+    print("numpy-quaternion " + str(time.time() - start_time))
+    # cant use np.cumprod becuase in quaternion to rotate first by q1 then by q2 the aggregated quaternion is q2q1 not q1q2
+    from functools import reduce
+    quaternions = reduce(lambda array,element: [*array, element * array[-1]], quaternions, [initial_quaternion])
     for i in range(accelerations.shape[1]):
         # create pure quaternion from acceleration vector at step i
-        acc_to_rotate = quaternion.quaternion(*np.asarray(accelerations[:, i]))
+        acc_to_rotate = numpy_quaternion.quaternion(*np.asarray(accelerations[:, i]))
         # rotate acceleration quaternion with rotation quaternion
+        # instead of re-implementing cumprod for reverse product (not allo array), reverse the rotation
         accelerations[:, i] = (quaternions[i] * acc_to_rotate * ~quaternions[i]).components[1:4]
     return accelerations
+
+def rotate_accelerations_pyquaternion(times, accelerations, angular_velocities, initial_angular_position=np.array([1,0,0])):
+    delta_thetas = simps_integrate_delta(times,angular_velocities)
+    initial_quaternion = Quaternion.exp(Quaternion(vector=initial_angular_position)/2)
+    import time
+    start_time = time.time()
+    quaternions = np.array([Quaternion.exp(Quaternion(vector=delta_theta)/2)
+         for delta_theta in delta_thetas[:,1:].T])
+    print("pyquaterion " + str(time.time() - start_time))
+    # cant use np.cumprod becuase in quaternion to rotate first by q1 then by q2 the aggregated quaternion is q2q1 not q1q2
+    from functools import reduce
+    quaternions = reduce(lambda array, element: [*array, element * array[-1]], quaternions, [initial_quaternion])
+    accelerations = np.array(list(map(lambda x:x[1].rotate(x[0]),zip(accelerations.T,quaternions))))
+    return accelerations.T

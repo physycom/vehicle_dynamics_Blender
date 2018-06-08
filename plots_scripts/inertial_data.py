@@ -33,7 +33,7 @@ from src.clean_data_utils import converts_measurement_units, reduce_disturbance,
     sign_inversion_is_necessary, get_stationary_times, correct_xy_orientation
 from src.gnss_utils import get_positions, get_velocities, align_to_world, get_accelerations
 from src.input_manager import parse_input, InputType
-from src.integrate import rotate_accelerations, simps_integrate
+from src.integrate import rotate_accelerations_numpyquaternion, simps_integrate
 
 if __name__ == '__main__':
 
@@ -83,7 +83,7 @@ if __name__ == '__main__':
     plt.show()
 
     #convert to laboratory frame of reference
-    accelerations = rotate_accelerations(times, accelerations, angular_velocities)
+    accelerations = rotate_accelerations_numpyquaternion(times, accelerations, angular_velocities)
     accelerations = align_to_world(gnss_positions, accelerations, stationary_times)
 
     figure = plot_vectors([accelerations[0:2],real_acc[0:2], angular_velocities[2]],
