@@ -170,9 +170,9 @@ def simps_integrate(times, vectors, initial=None, adjust_data=None, adjust_frequ
 
 def rotate_accelerations_numpyquaternion(times, accelerations, angular_velocities, initial_angular_position=np.array([[1], [0], [0]])):
     delta_thetas = simps_integrate_delta(times,angular_velocities)
+    initial_quaternion = np.exp(numpy_quaternion.quaternion(*np.asarray(initial_angular_position)) / 2)
     import time
     start_time = time.time()
-    initial_quaternion = np.exp(numpy_quaternion.quaternion(*np.asarray(initial_angular_position)) / 2)
     quaternions = np.array([np.exp(numpy_quaternion.quaternion(*np.asarray(delta_theta)) / 2) for delta_theta in delta_thetas[:,1:].T])
     print("numpy-quaternion " + str(time.time() - start_time))
     # cant use np.cumprod becuase in quaternion to rotate first by q1 then by q2 the aggregated quaternion is q2q1 not q1q2
