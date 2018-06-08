@@ -25,7 +25,7 @@ Credits: Federico Bertani, Stefano Sinigardi, Alessandro Fabbri, Nico Curti
 """
 
 import numpy as np
-import quaternion
+from pyquaternion import Quaternion
 from scipy import sin, cos
 from scipy.interpolate import interp1d
 from scipy.misc import derivative
@@ -79,9 +79,9 @@ class Trajectory:
         # angular position in all times
         self.th = np.array([thetacm(ti) for ti in self.__times])
         # array of pure quaternion angular positions
-        thq = np.array([np.exp(quaternion.quaternion(*thetai) / 2) for thetai in self.th])
+        thq = np.array([Quaternion.exp(Quaternion(vector=thetai) / 2) for thetai in self.th])
         # get successive rotations of initial point
-        r1 = np.array([(tq * quaternion.quaternion(*self.__start_position) * ~tq).components[1:4] for tq in thq])
+        r1 = np.array([(tq * Quaternion(vector=self.__start_position) * tq.conjugate).vector for tq in thq])
         # add vertical offset to positions
         self.trajectory = r + r1.T
         # save angular position function as object attribute to future calls

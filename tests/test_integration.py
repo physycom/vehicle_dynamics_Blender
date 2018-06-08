@@ -26,9 +26,9 @@ Credits: Federico Bertani, Stefano Sinigardi, Alessandro Fabbri, Nico Curti
 from unittest import TestCase
 import numpy as np
 from TrajectoryGenerator import Trajectory
-from src.integrate import simps_integrate, quad_integrate, trapz_integrate, rotate_accelerations_numpyquaternion
+from src.integrate import simps_integrate, quad_integrate, trapz_integrate
 
-from integrate import rotate_accelerations_pyquaternion
+from integrate import rotate_accelerations
 
 
 def integrate_and_test(method):
@@ -97,7 +97,7 @@ class IntegrationTest(TestCase):
 
 class RotationTest(TestCase):
 
-    def test_rotation_numpy_quaternion(self):
+    def test_rotation(self):
         from scipy.constants import pi
         # 90°/s around z
         angular_velocity = np.array([
@@ -111,44 +111,10 @@ class RotationTest(TestCase):
             [0, 0, 0],
             [0, 0, 0]])
         # test also initial angular position with different angle for testing quaternion product order correctness
-        vectors_to_rotate = rotate_accelerations_numpyquaternion(times, vectors_to_rotate, angular_velocity, np.array([0, 0, pi]))
+        vectors_to_rotate = rotate_accelerations(times, vectors_to_rotate, angular_velocity, np.array([0, 0, pi]))
         expected_result = np.array([
             [-1, 0, 1],
             [0, -1, 0],
             [0, 0, 0]])
         np.testing.assert_array_almost_equal(vectors_to_rotate, expected_result)
 
-    def test_rotation_pyquaternion(self):
-        from scipy.constants import pi
-        # 90°/s around z
-        angular_velocity = np.array([
-            [0, 0, 0],
-            [0, 0, 0],
-            [pi / 2, pi / 2, pi / 2]])
-        times = np.array([0, 1, 2])
-        # unitary x vector
-        vectors_to_rotate = np.array([
-            [1, 1, 1],
-            [0, 0, 0],
-            [0, 0, 0]])
-        # test also initial angular position with different angle for testing quaternion product order correctness
-        vectors_to_rotate = rotate_accelerations_pyquaternion(times, vectors_to_rotate, angular_velocity, np.array([0, 0, pi]))
-        expected_result = np.array([
-            [-1, 0, 1],
-            [0, -1, 0],
-            [0, 0, 0]])
-        np.testing.assert_array_almost_equal(vectors_to_rotate, expected_result)
-
-    def test_quaternion_library_equality(self):
-        # assuming rotation with numpy-quateternion is correct
-        max = 100
-        # creates dummy random vectors
-        angular_velocities = np.random.rand(3,max)
-        times = np.arange(max)
-        accelerations = np.random.rand(3,max)
-        # copy accelerations to avoid side effects
-        accelerations2 = accelerations.copy()
-        rotated_numpy = rotate_accelerations_numpyquaternion(times, accelerations, angular_velocities)
-
-        rotated_pyquaterion = rotate_accelerations_pyquaternion(times,accelerations2,angular_velocities)
-        np.testing.assert_array_almost_equal(rotated_numpy,rotated_pyquaterion,decimal=8)

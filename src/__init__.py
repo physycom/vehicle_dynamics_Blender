@@ -31,7 +31,7 @@ from src.clean_data_utils import converts_measurement_units, reduce_disturbance,
     sign_inversion_is_necessary, get_stationary_times, correct_xy_orientation
 from src.gnss_utils import get_positions, get_velocities, align_to_world, get_accelerations
 from src.input_manager import parse_input, InputType
-from src.integrate import rotate_accelerations_numpyquaternion, simps_integrate, rotate_accelerations_pyquaternion
+from src.integrate import simps_integrate, rotate_accelerations
 
 
 def get_positions_times(path):
@@ -83,7 +83,7 @@ def get_positions_times(path):
     accelerations = correct_xy_orientation(accelerations, angular_velocities)
 
     # convert to laboratory frame of reference
-    accelerations = rotate_accelerations_numpyquaternion(times, accelerations, angular_velocities)
+    accelerations = rotate_accelerations(times, accelerations, angular_velocities)
 
     # rotate to align y to north, x to east
     accelerations = align_to_world(gnss_positions, accelerations, stationary_times)
