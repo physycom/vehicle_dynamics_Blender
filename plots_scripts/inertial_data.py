@@ -33,7 +33,7 @@ from src.clean_data_utils import converts_measurement_units, reduce_disturbance,
     sign_inversion_is_necessary, get_stationary_times, correct_xy_orientation
 from src.gnss_utils import get_positions, get_velocities, align_to_world, get_accelerations
 from src.input_manager import parse_input, InputType
-from src.integrate import rotate_accelerations_numpyquaternion, simps_integrate
+from src.integrate import rotate_accelerations, simps_integrate
 
 if __name__ == '__main__':
 
@@ -72,22 +72,21 @@ if __name__ == '__main__':
     # remove g
     accelerations[2] -= accelerations[2, stationary_times[0][0]:stationary_times[0][-1]].mean()
 
-    figure = plot_vectors([accelerations[0:2], angular_velocities[2]],
-                          ['inertial_ax', 'omega_z'])
-    plt.show()
+    plot_vectors([accelerations[0:2], angular_velocities[2]],
+                          ['inertial_ax', 'omega_z'],title="inertial accelerations before rotations",tri_dim=False)
 
     accelerations = correct_xy_orientation(accelerations,angular_velocities)
 
-    figure = plot_vectors([accelerations[0:2], angular_velocities[2]],
-                          ['inertial_ax', 'omega_z'])
-    plt.show()
+    plot_vectors([accelerations[0:2], angular_velocities[2]],
+                          ['inertial_ax', 'omega_z'],title="inertial accelerations after rotations",tri_dim=False)
 
     #convert to laboratory frame of reference
-    accelerations = rotate_accelerations_numpyquaternion(times, accelerations, angular_velocities)
+    accelerations = rotate_accelerations(times, accelerations, angular_velocities)
     accelerations = align_to_world(gnss_positions, accelerations, stationary_times)
 
     figure = plot_vectors([accelerations[0:2],real_acc[0:2], angular_velocities[2]],
-                          ['inertial_ax','gnss_acc', 'omega_z'])
+                          ['inertial_ax','gnss_acc', 'omega_z'],
+                          title="comparison inertial and gnss accelerations in word reference frame",tri_dim=False)
     plt.show()
 
     initial_speed = np.array([[gps_speed[0]],[0],[0]])
