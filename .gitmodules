@@ -1,0 +1,3 @@
+[submodule "blender-addon-updater"]
+	path = blender-addon-updater
+	url = https://github.com/CGCookie/blender-addon-updater
