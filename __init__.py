@@ -67,7 +67,7 @@ class AnimateObject(bpy.types.Operator):
 
     def execute(self, context):
         sys.path.append(str(Path(__file__).parent))
-        from src.create_trajectory_file import get_positions_times
+        from src import get_positions_times
         scene = context.scene
         fps = bpy.context.scene.render.fps
         obj = scene.objects.active
@@ -127,7 +127,7 @@ def register():
         print("Command: " + command)
         call_system_command(command)
     try:
-        import scipy, quaternion
+        import scipy, pyquaternion
     except ImportError:
         print("Installing packets")
         if (os.path.exists(posix_pip_location)):
