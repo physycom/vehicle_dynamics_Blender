@@ -167,7 +167,7 @@ def simps_integrate(times, vectors, initial=None, adjust_data=None, adjust_frequ
     return result_vectors
 
 
-def rotate_accelerations(times, accelerations, angular_velocities, initial_angular_position=np.array([1, 0, 0])):
+def rotate_accelerations(times, accelerations, angular_velocities, initial_angular_position=np.array([0, 0, 0])):
     """
     Integrate angular velocities and rotate acceleration vector accondingly.
     Moves from local frame of reference to laboratory one.
