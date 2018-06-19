@@ -25,6 +25,7 @@ Credits: Federico Bertani, Stefano Sinigardi, Alessandro Fabbri, Nico Curti
 
 from math import cos
 from scipy import arctan2
+from pyquaternion import Quaternion
 
 import numpy as np
 
@@ -108,13 +109,14 @@ def get_accelerations(times, velocities):
     return accelerations
 
 
-def align_to_world(gnss_position, vectors, stationary_times):
+def align_to_world(gnss_position, vectors, stationary_times, angular_positions):
     """
     Align accelerations to world system (x axis going to east, y to north)
 
     :param gnss_position: 3xn numpy array. positions from gnss data
     :param vectors: 3xn numpy array
     :param stationary_times: list of tuples
+    :param angular_positions:
     :return: 3xn numpy array of rotated accelerations
     """
 
@@ -144,7 +146,10 @@ def align_to_world(gnss_position, vectors, stationary_times):
     message = "Rotation vector to {} degrees to align to world".format(np.rad2deg(rotation_angle))
     print(message)
     new_vectors = vectors.copy()
+    quaternions = [Quaternion(elements) for elements in angular_positions.T]
+    rotation_quaternion = Quaternion.exp(Quaternion(vector=rotation_angle*np.array([0,0,1])) / 2)
+    angular_positions = np.array([(quaternion * rotation_quaternion).elements for quaternion in quaternions])
     # rotate vector in xy plane
     new_vectors[0] = cos(rotation_angle) * vectors[0] - sin(rotation_angle) * vectors[1]
     new_vectors[1] = sin(rotation_angle) * vectors[0] + cos(rotation_angle) * vectors[1]
-    return new_vectors
+    return new_vectors, angular_positions.T

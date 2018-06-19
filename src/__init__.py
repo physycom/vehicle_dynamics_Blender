@@ -86,8 +86,7 @@ def get_trajectory_from_path(path):
     accelerations, angular_positions = rotate_accelerations(times, accelerations, angular_velocities)
 
     # rotate to align y to north, x to east
-    accelerations = align_to_world(gnss_positions, accelerations, stationary_times)
-
+    accelerations, angular_positions = align_to_world(gnss_positions, accelerations, stationary_times,angular_positions)
 
     initial_speed = np.array([[gps_speed[0]], [0], [0]])
     # integrate acceleration with gss velocities correction
