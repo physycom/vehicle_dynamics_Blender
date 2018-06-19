@@ -28,7 +28,7 @@ if __name__ == '__main__':
     import sys, os
     # fix import path
     sys.path[0] = os.path.dirname(os.path.dirname(__file__))
-    from src import get_positions_times
+    from src import get_trajectory_from_path
     import numpy as np
     # for benchmarking
     import time
@@ -48,11 +48,11 @@ if __name__ == '__main__':
     path = os.path.join(my_path, args.input)
 
     #integrate positions
-    positions, times = get_positions_times(path)
+    positions, times, angular_positions = get_trajectory_from_path(path)
     #reshape times to merge it with position
     times = np.reshape(times, (1, len(times)))
     # merge times and positions in one array
-    timesPosition = np.concatenate((times, positions), axis=0)
+    timesPosition = np.concatenate((times, positions, angular_positions), axis=0)
     # save to txt
     np.savetxt(args.output, timesPosition.T, delimiter=";", newline="\n")
 

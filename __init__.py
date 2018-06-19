@@ -70,12 +70,11 @@ class AnimateObject(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        sys.path.append(str(Path(__file__).parent))
-        from src import get_positions_times
+        from src import get_trajectory_from_path
         scene = context.scene
         fps = bpy.context.scene.render.fps
         obj = scene.objects.active
-        positions, times = get_positions_times(scene.datasetPath)
+        positions, times, angular_positions = get_trajectory_from_path(scene.datasetPath)
         bpy.context.scene.frame_end = times[-1] * fps
         obj.animation_data_clear()
         # create animation data
@@ -90,11 +89,14 @@ class AnimateObject(bpy.types.Operator):
             for i in range(0, positions_lenght):
                 fcurve_location.keyframe_points[i].interpolation = 'CONSTANT'
                 fcurve_location.keyframe_points[i].co = times[i] * fps, positions[index, i]
-        fcurve_rotation = obj.animation_data.action.fcurves.new(data_path="rotation_quaternion", index=index + 3)
-        fcurve_rotation.keyframe_points.add(positions_lenght)
-        for i in range(0, positions_lenght):
-            fcurve_rotation.keyframe_points[i].interpolation = 'CONSTANT'
-            fcurve_rotation.keyframe_points[i].co = times[i] * fps,positions[3:6,i]
+        # create f-curve for each quaternion component
+        for index in range(4):
+            fcurve_rotation = obj.animation_data.action.fcurves.new(data_path="rotation_quaternion", index=index)
+            fcurve_rotation.keyframe_points.add(positions_lenght)
+            for i in range(0, positions_lenght):
+                fcurve_rotation.keyframe_points[i].interpolation = 'CONSTANT'
+                fcurve_rotation.keyframe_points[i].co = times[i] * fps, angular_positions[index,i]
+        print("Done adding keyframes!")
         return {'FINISHED'}
 
 

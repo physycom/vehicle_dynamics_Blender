@@ -168,6 +168,17 @@ def simps_integrate(times, vectors, initial=None, adjust_data=None, adjust_frequ
 
 
 def rotate_accelerations(times, accelerations, angular_velocities, initial_angular_position=np.array([1, 0, 0])):
+    """
+    Integrate angular velocities and rotate acceleration vector accondingly.
+    Moves from local frame of reference to laboratory one.
+
+    :param times: 1xn numpy array of timestamp
+    :param accelerations: 3xn numpy array of accelerations
+    :param angular_velocities: 3xn numpy array of angular velocities in rad/s
+    :param initial_angular_position: 1x3 numpy array containing initial angular position vector
+    :return: 2 numpy array: 3xn acceleration vector and 4xn angular position as quaternion
+    """
+
     # integrate angular_velocities to get a delta theta vector
     delta_thetas = simps_integrate_delta(times,angular_velocities)
     initial_quaternion = Quaternion.exp(Quaternion(vector=initial_angular_position)/2)
@@ -179,4 +190,5 @@ def rotate_accelerations(times, accelerations, angular_velocities, initial_angul
     from functools import reduce
     quaternions = reduce(lambda array, element: [*array, element * array[-1]], quaternions, [initial_quaternion])
     accelerations = np.array(list(map(lambda x:x[1].rotate(x[0]),zip(accelerations.T,quaternions))))
-    return accelerations.T
+    angular_positions = np.array([quaternion.elements for quaternion in quaternions])
+    return accelerations.T, angular_positions.T
