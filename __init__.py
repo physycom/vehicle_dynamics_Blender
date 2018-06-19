@@ -86,11 +86,15 @@ class AnimateObject(bpy.types.Operator):
         # create f-curve for each axis
         for index in range(3):
             fcurve_location = obj.animation_data.action.fcurves.new(data_path="location", index=index)
-            fcurve_rotation = obj.animation_data.action.fcurves.new(data_path="rotation", index=index)
             fcurve_location.keyframe_points.add(positions_lenght)
             for i in range(0, positions_lenght):
                 fcurve_location.keyframe_points[i].interpolation = 'CONSTANT'
                 fcurve_location.keyframe_points[i].co = times[i] * fps, positions[index, i]
+        fcurve_rotation = obj.animation_data.action.fcurves.new(data_path="rotation_quaternion", index=index + 3)
+        fcurve_rotation.keyframe_points.add(positions_lenght)
+        for i in range(0, positions_lenght):
+            fcurve_rotation.keyframe_points[i].interpolation = 'CONSTANT'
+            fcurve_rotation.keyframe_points[i].co = times[i] * fps,positions[3:6,i]
         return {'FINISHED'}
 
 
