@@ -1,6 +1,8 @@
 """
-Provide a class to generate a trajectory and get accelerations from it.
-Then check a integrated trajectory against original one to measure level of error.
+Circular trajectory with constant acceleration along z-axis.
+Similar to a spring that stretches upward.
+Useful for testing numerical integration and quaternions
+but doesn't currently provide object rotation.
 
 This file is part of inertial_to_blender project,
 a Blender simulation generator from inertial sensor data on cars.
@@ -30,10 +32,11 @@ from scipy import sin, cos
 from scipy.interpolate import interp1d
 from scipy.misc import derivative
 
+from BaseTrajectoryGenerator import BaseTrajectoryGenerator
 from plots_scripts.plot_utils import plot_vectors
 
 
-class Trajectory:
+class SpringTrajectoryGenerator(BaseTrajectoryGenerator):
     """
     Create a trajectory and provide accelerations of the motion along it.
     Useful for check quality of numerical integration methods against analytical trajectory.
@@ -41,16 +44,13 @@ class Trajectory:
     """
 
     def __init__(self):
+        super().__init__()
         """Creates TrajectoryGenerator object"""
-        # TODO generalize
         self.v0x = 0  # initial linear velocity
         self.ax = 0.1  # linear acceleration
         self.wz = 0.1  # z angular velocity
-        dt = 1e-2  # timestep
         #  point position with respect to origin
-        self.__start_position = np.array([1, 0, 0])
-        # timestamps
-        self.__times = np.arange(0, 100, dt)
+        self.start_position = np.array([1, 0, 0])
 
         def rcm(t):
             """Linear position at time t
@@ -75,13 +75,13 @@ class Trajectory:
             ])
 
         # position in all times of linear uniform accelerated motion along z
-        r = np.array([rcm(ti) for ti in self.__times]).T
+        r = np.array([rcm(ti) for ti in self.times]).T
         # angular position in all times
-        self.th = np.array([thetacm(ti) for ti in self.__times])
-        # array of pure quaternion angular positions
+        self.th = np.array([thetacm(ti) for ti in self.times])
+        # array of quaternion angular positions
         thq = np.array([Quaternion.exp(Quaternion(vector=thetai) / 2) for thetai in self.th])
         # get successive rotations of initial point
-        r1 = np.array([(tq * Quaternion(vector=self.__start_position) * tq.conjugate).vector for tq in thq])
+        r1 = np.array([(tq * Quaternion(vector=self.start_position) * tq.conjugate).vector for tq in thq])
         # add vertical offset to positions
         self.trajectory = r + r1.T
         # save angular position function as object attribute to future calls
@@ -93,7 +93,7 @@ class Trajectory:
         Those acceleration are analytical calculated and aren't susceptible to errors
         """
         # create empty numpy array for accelerations
-        accelerations = np.zeros((3, len(self.__times)))
+        accelerations = np.zeros((3, len(self.times)))
         # radial accelerations is equal to angular velocity^2 / radius but radius is unitary is this trajectory
         radial_acceleration = self.wz ** 2
         # decompose radial accelerations in x and y components
@@ -109,14 +109,14 @@ class Trajectory:
         Those velocities are analytical calculated and aren't susceptible to errors
         """
         # create empty numpy array for accelerations
-        velocities = np.zeros((3, len(self.__times)))
+        velocities = np.zeros((3, len(self.times)))
         # tangential velocity is angular velocity multiplied by radius but radius is one
         vt = self.wz
         # decompose tangential velocity in x and y components
         velocities[0, :] = vt * -sin(self.th[:, 2])
         velocities[1, :] = vt * cos(self.th[:, 2])
         # linear velocity along z axis
-        velocities[2, :] = self.v0x + self.ax * self.__times
+        velocities[2, :] = self.v0x + self.ax * self.times
         return velocities
 
     def get_numerical_derived_accelerations(self):
@@ -126,19 +126,11 @@ class Trajectory:
         Those accelerations are susceptible to errors.
         """
         # interpolate trajectory to python function because scipy derivative method require it
-        trajectory_function = interp1d(x=self.__times, y=self.trajectory, copy=False, assume_sorted=True)
+        trajectory_function = interp1d(x=self.times, y=self.trajectory, copy=False, assume_sorted=True)
         # removes some points to left and right margins because derivation is undefined there
-        times = np.array(list(filter(lambda x: 1 < x < 99, self.__times)))
+        times = np.array(list(filter(lambda x: 1 < x < 99, self.times)))
         # calculate numerical 2° order derivative and return it
         return times, np.array([derivative(func=trajectory_function, x0=time, n=2) for time in times]).T
-
-    def get_times(self):
-        """return private attribute times"""
-        return self.__times
-
-    def get_start_position(self):
-        """return 3x1 numpy array describing motion initial position"""
-        return self.trajectory[:, 0]
 
     def get_start_velocity(self):
         """return 3x1 numpy array describing motion initial position"""

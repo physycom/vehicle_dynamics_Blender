@@ -25,7 +25,7 @@ Credits: Federico Bertani, Stefano Sinigardi, Alessandro Fabbri, Nico Curti
 
 from unittest import TestCase
 
-from TrajectoryGenerator import Trajectory
+from SpringTrajectoryGenerator import SpringTrajectoryGenerator
 
 
 class TrajectoryGeneratorTests(TestCase):
@@ -35,7 +35,7 @@ class TrajectoryGeneratorTests(TestCase):
         # define a threshold
         arbitrary_acceptable_threshold = 0.001
         # generate trajectory object
-        trajectory_generator = Trajectory()
+        trajectory_generator = SpringTrajectoryGenerator()
         # get numerical accelerations
         _, accelerations_num = trajectory_generator.get_numerical_derived_accelerations()
         # get analytical accelerations

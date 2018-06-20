@@ -1,13 +1,12 @@
-#!/usr/bin/env python
 """
-Plot average error of quad, trapezoid and simpson integration method
-on TrajectoryGenerator motion
+Provide a base abstract class to generate a trajectory and get accelerations from it.
+Then check a integrated trajectory against original one to measure level of error.
 
 This file is part of inertial_to_blender project,
 a Blender simulation generator from inertial sensor data on cars.
 
 Copyright (C) 2018  Federico Bertani
-Author: Federico Bertani
+Author: Federico Bertani, Alessandro Fabbri
 Credits: Federico Bertani, Stefano Sinigardi, Alessandro Fabbri, Nico Curti
 
     This program is free software: you can redistribute it and/or modify
@@ -25,18 +24,38 @@ Credits: Federico Bertani, Stefano Sinigardi, Alessandro Fabbri, Nico Curti
 
 """
 
-import matplotlib.pyplot as plt
+from abc import ABC, abstractmethod
 
-from tests.test_integration import integrate_and_test, SpringTrajectoryGenerator, \
-    quad_integrate, trapz_integrate, simps_integrate
+import numpy as np
 
-if __name__ == '__main__':
-    trajectory = SpringTrajectoryGenerator()
-    quad_error = integrate_and_test(quad_integrate)
-    trapz_error = integrate_and_test(trapz_integrate)
-    simps_error = integrate_and_test(simps_integrate)
-    plt.plot(quad_error, label='quad')
-    plt.plot(trapz_error, label='trapz')
-    plt.plot(simps_error, label='simps')
-    plt.legend()
-    plt.show()
+
+class BaseTrajectoryGenerator(ABC):
+
+    def __init__(self):
+        dt = 1e-2  # timestep
+        # timestamps
+        self.times = np.arange(0, 100, dt)
+
+    @abstractmethod
+    def get_analytical_accelerations(self):
+        pass
+
+    @abstractmethod
+    def get_analytical_velocities(self):
+        pass
+
+    @abstractmethod
+    def get_numerical_derived_accelerations(self):
+        pass
+
+    @abstractmethod
+    def get_start_velocity(self):
+        pass
+
+    @abstractmethod
+    def check_trajectory(self, external_trajectory):
+        pass
+
+    @abstractmethod
+    def plot_trajectory(self):
+        pass

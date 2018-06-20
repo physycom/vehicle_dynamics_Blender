@@ -25,7 +25,7 @@ Credits: Federico Bertani, Stefano Sinigardi, Alessandro Fabbri, Nico Curti
 
 from unittest import TestCase
 import numpy as np
-from TrajectoryGenerator import Trajectory
+from SpringTrajectoryGenerator import SpringTrajectoryGenerator
 from src.integrate import simps_integrate, quad_integrate, trapz_integrate, \
     rotate_accelerations
 
@@ -39,7 +39,7 @@ def integrate_and_test(method):
     """
     integrated_trajectory = get_integrated_trajectory(method)
     # check integrated trajectory
-    error = Trajectory().check_trajectory(integrated_trajectory)
+    error = SpringTrajectoryGenerator().check_trajectory(integrated_trajectory)
     return error
 
 
@@ -51,10 +51,10 @@ def get_integrated_trajectory(method):
     """
 
     # create trajectory
-    trajectory = Trajectory()
+    trajectory = SpringTrajectoryGenerator()
     # get motion timestamps
-    times = trajectory.get_times()
-    start_position = trajectory.get_start_position()
+    times = trajectory.times
+    start_position = trajectory.start_position
     start_velocity = trajectory.get_start_velocity()
     # get analytical accelerations
     accelerations = trajectory.get_analytical_accelerations()
@@ -75,7 +75,6 @@ class IntegrationTest(TestCase):
         """ Simple integration methods test with trigonometry functions"""
 
         # TODO remove when trajectory will be generalized
-        import numpy as np
         from scipy import sin, cos
         times = np.arange(start=0, stop=100, step=1e-2)
         sinus = np.array([sin(x) for x in times])
@@ -94,6 +93,7 @@ class IntegrationTest(TestCase):
             # check error is below a threshold
             self.assertTrue(error.mean() < 0.005)
 
+
 class RotationTest(TestCase):
 
     def test_rotation(self):
@@ -110,10 +110,10 @@ class RotationTest(TestCase):
             [0, 0, 0],
             [0, 0, 0]])
         # test also initial angular position with different angle for testing quaternion product order correctness
-        vectors_to_rotate = rotate_accelerations(times, vectors_to_rotate, angular_velocity, np.array([0, 0, pi]))
+        vectors_to_rotate, angular_velocity = \
+            rotate_accelerations(times, vectors_to_rotate, angular_velocity, np.array([0, 0, pi]))
         expected_result = np.array([
             [-1, 0, 1],
             [0, -1, 0],
             [0, 0, 0]])
         np.testing.assert_array_almost_equal(vectors_to_rotate, expected_result)
-

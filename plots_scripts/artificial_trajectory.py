@@ -28,11 +28,11 @@ Credits: Federico Bertani, Stefano Sinigardi, Alessandro Fabbri, Nico Curti
 import matplotlib.pyplot as plt
 
 from plots_scripts.plot_utils import plot_vectors
-from tests.test_integration import get_integrated_trajectory, Trajectory, \
+from tests.test_integration import get_integrated_trajectory, SpringTrajectoryGenerator, \
     simps_integrate
 
 if __name__ == "__main__":
-    trajectory = Trajectory()
+    trajectory = SpringTrajectoryGenerator()
     trajectory.plot_trajectory()
     accelerations = trajectory.get_analytical_accelerations()
     plot_vectors([accelerations], ["accelerations"])

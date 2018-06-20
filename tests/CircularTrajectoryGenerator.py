@@ -1,13 +1,12 @@
-#!/usr/bin/env python
 """
-Plot average error of quad, trapezoid and simpson integration method
-on TrajectoryGenerator motion
+Circular trajectory on 2d plane with object rotation.
+Useful for testing local to laboratory.
 
 This file is part of inertial_to_blender project,
 a Blender simulation generator from inertial sensor data on cars.
 
 Copyright (C) 2018  Federico Bertani
-Author: Federico Bertani
+Author: Federico Bertani, Alessandro Fabbri
 Credits: Federico Bertani, Stefano Sinigardi, Alessandro Fabbri, Nico Curti
 
     This program is free software: you can redistribute it and/or modify
@@ -25,18 +24,25 @@ Credits: Federico Bertani, Stefano Sinigardi, Alessandro Fabbri, Nico Curti
 
 """
 
-import matplotlib.pyplot as plt
+from BaseTrajectoryGenerator import BaseTrajectoryGenerator
 
-from tests.test_integration import integrate_and_test, SpringTrajectoryGenerator, \
-    quad_integrate, trapz_integrate, simps_integrate
 
-if __name__ == '__main__':
-    trajectory = SpringTrajectoryGenerator()
-    quad_error = integrate_and_test(quad_integrate)
-    trapz_error = integrate_and_test(trapz_integrate)
-    simps_error = integrate_and_test(simps_integrate)
-    plt.plot(quad_error, label='quad')
-    plt.plot(trapz_error, label='trapz')
-    plt.plot(simps_error, label='simps')
-    plt.legend()
-    plt.show()
+class CircularTrajectoryGenerator(BaseTrajectoryGenerator):
+
+    def get_analytical_accelerations(self):
+        pass
+
+    def get_analytical_velocities(self):
+        pass
+
+    def get_numerical_derived_accelerations(self):
+        pass
+
+    def get_start_velocity(self):
+        pass
+
+    def check_trajectory(self, external_trajectory):
+        pass
+
+    def plot_trajectory(self):
+        pass
