@@ -168,6 +168,7 @@ def reduce_disturbance(times, vectors, window_dimension):
 
     :param times: 1xn numpy array of timestamps
     :param vectors: 3xn numpy array of whatever numeric
+    :param window_dimension: int rolling average window dimension
     :return 2 numpy vector: new times and new vector
     """
 
@@ -274,6 +275,7 @@ def correct_xy_orientation(accelerations, angular_velocities):
             # get angle and negate it to remove rotation
             angle = -arctan2(vec[1], vec[0])
             if (vec[1] > 0 and vec[0] < 0):
+                # TODO check if this case is necessary (is out of coverage)
                 angle = pi + angle
             elif (vec[1] < 0 and vec[0] < 0):
                 angle = -(pi + angle)
@@ -340,8 +342,7 @@ def correct_z_orientation(accelerations, angular_velocities, stationary_times):
             # print a warning
             import warnings
             message = " \n Found additional bad z axis of {} degrees alignment at time {} , " \
-                      "realigning from now  \n".format(
-                np.rad2deg(bad_align_angle), stationary_time[0])
+                      "realigning from now  \n".format(np.rad2deg(bad_align_angle), stationary_time[0])
             warnings.warn(message)
             # re-align
             accelerations, angular_velocities = align_from_g_vector(accelerations, angular_velocities, g)

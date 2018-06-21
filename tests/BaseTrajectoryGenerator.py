@@ -35,6 +35,8 @@ class BaseTrajectoryGenerator(ABC):
         dt = 1e-2  # timestep
         # timestamps
         self.times = np.arange(0, 100, dt)
+        # create a trajectory here only because check_trajectory would require one
+        self.trajectory = np.zeros((3, 100))
 
     @abstractmethod
     def get_analytical_accelerations(self):

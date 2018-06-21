@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 """
-Plot motion accelerations from tests/TrajectoryGenerator and integrated trajectory
-
+Plot motion accelerations from tests/SpringTrajectoryGenerator and integrated trajectory
 
 This file is part of inertial_to_blender project,
 a Blender simulation generator from inertial sensor data on cars.

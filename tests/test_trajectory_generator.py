@@ -31,7 +31,8 @@ from SpringTrajectoryGenerator import SpringTrajectoryGenerator
 class TrajectoryGeneratorTests(TestCase):
 
     def test_numerical_vs_analytical(self):
-        """Calculate difference between"""
+        """Calculate difference between numerically derived and analytical derived"""
+        # this is only for personal interest and is not so much related to project
         # define a threshold
         arbitrary_acceptable_threshold = 0.001
         # generate trajectory object

@@ -26,6 +26,7 @@ Credits: Federico Bertani, Stefano Sinigardi, Alessandro Fabbri, Nico Curti
 from unittest import TestCase
 import numpy as np
 from SpringTrajectoryGenerator import SpringTrajectoryGenerator
+from CircularTrajectoryGenerator import CircularTrajectoryGenerator
 from src.integrate import simps_integrate, quad_integrate, trapz_integrate, \
     rotate_accelerations
 
@@ -117,3 +118,26 @@ class RotationTest(TestCase):
             [0, -1, 0],
             [0, 0, 0]])
         np.testing.assert_array_almost_equal(vectors_to_rotate, expected_result)
+
+    def test_local_to_lab(self):
+        """ Tests conversion from local acceleration reference frame to laboratory reference frame
+        by rotation using integrated angular velocity. Tests both integrator and rotator.
+        """
+
+        # generated Trajectory Generator object
+        circular_tra = CircularTrajectoryGenerator()
+        # get trajectory times
+        times = circular_tra.times
+        # get local accelerations
+        accelerations = circular_tra.get_analytical_local_accelerations()
+        # get angular velocities
+        angular_velocities = circular_tra.get_angular_velocities()
+        # convert to laboratory frame of reference
+        accelerations, angular_positions = rotate_accelerations(times, accelerations, angular_velocities,
+                                                                initial_angular_position=[0, 0, np.pi / 2])
+        initial_speed = np.array([[0], [circular_tra.initial_tangential_speed], [0]])
+        velocities = simps_integrate(times, accelerations, initial_speed)
+        initial_position = np.array([[1], [0], [0]])
+        positions = simps_integrate(times, velocities, initial_position)
+        # if the integrated trajectory and the analytical one are equal thant both the integrator and the rotator works
+        np.testing.assert_array_almost_equal(positions, circular_tra.trajectory)
