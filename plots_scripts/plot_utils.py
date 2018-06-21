@@ -39,6 +39,7 @@ def plot_vectors(vectors_list, label_list=None, title=None ,tri_dim = True):
     """
 
     axis_labels = ['x','y','z']
+    label_list = label_list if (label_list!=None) else ["" for _ in vectors_list]
     fig = plt.figure(figsize=plt.figaspect(0.5))
     if (title):
         fig.suptitle(title)
