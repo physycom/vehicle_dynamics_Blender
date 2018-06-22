@@ -42,7 +42,6 @@ def get_positions(coordinates, altitudes):
     # create empty array for final positions
     positions = np.zeros((3, coordinates.shape[1]))
     headings = np.zeros(coordinates.shape[1])
-    coordinates = np.deg2rad(coordinates)
     # current position
     current = np.array([coordinates[0, 0], coordinates[1, 0], altitudes[0]])
     # iterate skipping first position that is zero

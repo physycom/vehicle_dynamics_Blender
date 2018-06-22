@@ -38,6 +38,7 @@ class GnssUtilsTests(TestCase):
             (44.484171, 11.355872),
             (44.483912, 11.355410),
             (44.483966, 11.355011)])
+        coordinates = np.deg2rad(coordinates)
         # altitude is zero
         altitudes = np.zeros(4)
         # create expected distance (values are taken from a website)
