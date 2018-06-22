@@ -44,7 +44,7 @@ class SpringTrajectoryGenerator(BaseTrajectoryGenerator):
     """
 
     def __init__(self):
-        super().__init__()
+        super().__init__(time_step=0.1)
         """Creates TrajectoryGenerator object"""
         self.v0x = 0  # initial linear velocity
         self.ax = 0.1  # linear acceleration
@@ -128,7 +128,7 @@ class SpringTrajectoryGenerator(BaseTrajectoryGenerator):
         # interpolate trajectory to python function because scipy derivative method require it
         trajectory_function = interp1d(x=self.times, y=self.trajectory, copy=False, assume_sorted=True)
         # removes some points to left and right margins because derivation is undefined there
-        times = np.array(list(filter(lambda x: 1 < x < 99, self.times)))
+        times = np.array(list(filter(lambda x: 1 < x < self.max_time-1, self.times)))
         # calculate numerical 2° order derivative and return it
         return times, np.array([derivative(func=trajectory_function, x0=time, n=2) for time in times]).T
 

@@ -140,4 +140,4 @@ class RotationTest(TestCase):
         initial_position = np.array([[1], [0], [0]])
         positions = simps_integrate(times, velocities, initial_position)
         # if the integrated trajectory and the analytical one are equal thant both the integrator and the rotator works
-        np.testing.assert_array_almost_equal(positions, circular_tra.trajectory)
+        np.testing.assert_array_almost_equal(positions, circular_tra.trajectory, decimal=3)

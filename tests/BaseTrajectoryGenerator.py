@@ -31,10 +31,11 @@ import numpy as np
 
 class BaseTrajectoryGenerator(ABC):
 
-    def __init__(self):
-        dt = 1e-2  # timestep
+    def __init__(self, max_time=100, time_step=1e-2):
+        dt = time_step  # timestep
+        self.max_time = max_time
         # timestamps
-        self.times = np.arange(0, 100, dt)
+        self.times = np.arange(0, max_time, dt)
         # create a trajectory here only because check_trajectory would require one
         self.trajectory = np.zeros((3, 100))
 

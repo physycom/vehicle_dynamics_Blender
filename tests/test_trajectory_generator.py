@@ -24,6 +24,7 @@ Credits: Federico Bertani, Stefano Sinigardi, Alessandro Fabbri, Nico Curti
 """
 
 from unittest import TestCase
+import numpy as np
 
 from SpringTrajectoryGenerator import SpringTrajectoryGenerator
 
@@ -43,6 +44,9 @@ class TrajectoryGeneratorTests(TestCase):
         accelerations_analytical = trajectory_generator.get_analytical_accelerations()
         # compute the error as the absolute difference
         # symbolic accelerations are sliced see get_numerical_derived_accelerations() doc
-        error = abs(accelerations_analytical[:, 100:-101] - accelerations_num)
+        times = trajectory_generator.times
+        accelerations_analytical = accelerations_analytical[:,
+                                   np.logical_and(times > 1, times < trajectory_generator.max_time - 1)]
+        error = abs(accelerations_analytical - accelerations_num)
         print("median error numerical-analytical derivative {} meters".format(error.mean()))
         self.assertTrue(abs(error.mean()) < arbitrary_acceptable_threshold)

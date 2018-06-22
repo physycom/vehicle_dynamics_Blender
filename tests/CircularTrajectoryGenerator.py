@@ -32,11 +32,9 @@ from plots_scripts.plot_utils import plot_vectors
 
 class CircularTrajectoryGenerator(BaseTrajectoryGenerator):
 
-    def __init__(self):
-        super().__init__()
-        self.radius = 1  # m
-        self.times = np.arange(0, 10, 1e-2)
-        tangential_speed = 1  # m/s
+    def __init__(self, radius=1, max_time=10, time_step=1e-1, tangential_speed=1):
+        super().__init__(max_time, time_step)
+        self.radius = radius  # m
         self.initial_tangential_speed = tangential_speed
         # angular speed is inversely proportional to radius given tangential speed
         self.angular_speed_z = tangential_speed / self.radius
