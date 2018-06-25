@@ -28,14 +28,14 @@ import matplotlib.pyplot as plt
 
 from plots_scripts.plot_utils import plot_vectors
 from tests.test_integration import get_integrated_trajectory, SpringTrajectoryGenerator, \
-    simps_integrate
+    cumulative_integrate
 
 if __name__ == "__main__":
     trajectory = SpringTrajectoryGenerator()
     trajectory.plot_trajectory()
     accelerations = trajectory.get_analytical_accelerations()
     plot_vectors([accelerations], ["accelerations"])
-    integrated_trajectory = get_integrated_trajectory(simps_integrate)
+    integrated_trajectory = get_integrated_trajectory(cumulative_integrate)
     plot_vectors([integrated_trajectory], ["integrated trajectory"])
     # blocking call to show all plots
     plt.show()

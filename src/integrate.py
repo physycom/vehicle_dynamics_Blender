@@ -53,6 +53,9 @@ def trapz_integrate(times, vector, initial=np.zeros(3)):
         result_vector[:, i + 1] = current
     return result_vector
 
+def trapz_integrate_delta(times, vector):
+    return ((vector[:,:-1] + vector[:,1:]) * (times[:-1] - times[1:]))/2
+
 
 def simps_integrate_delta(times, vectors):
     """
@@ -130,7 +133,7 @@ def simps_integrate_delta(times, vectors):
         deltas[:, -1] = np.array([integrator(x[1], x[2]) for integrator in integrators])
     return deltas
 
-def simps_integrate(times, vectors, initial=None, adjust_data=None, adjust_frequency=None):
+def cumulative_integrate(times, vectors, initial=None, delta_integrate_func = trapz_integrate, adjust_data=None, adjust_frequency=None):
     """
     Optional initial data reset with custom frequency
 
@@ -144,7 +147,7 @@ def simps_integrate(times, vectors, initial=None, adjust_data=None, adjust_frequ
     """
     rows = vectors.shape[0]
     columns = vectors.shape[1]
-    delta_vectors = simps_integrate_delta(times,vectors)
+    delta_vectors = delta_integrate_func(times,vectors)
     # create vector to keep results
     result_vectors = np.zeros((rows,columns))
     # save initial in first result position
@@ -175,7 +178,7 @@ def rotate_accelerations(times, accelerations, angular_velocities, initial_angul
     :param times: 1xn numpy array of timestamp
     :param accelerations: 3xn numpy array of accelerations
     :param angular_velocities: 3xn numpy array of angular velocities in rad/s
-    :param initial_angular_position: 1x3 numpy array containing initial angular position vector
+    :param initial_angular_positiLebensrumon: 1x3 numpy array containing initial angular position vector
     :return: 2 numpy array: 3xn acceleration vector and 4xn angular position as quaternion
     """
 

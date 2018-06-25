@@ -72,12 +72,16 @@ class AnimateObject(bpy.types.Operator):
     def execute(self, context):
         from src import get_trajectory_from_path
         scene = context.scene
+        # get current frame per seconds value
         fps = bpy.context.scene.render.fps
+        # get current selected object in scene
         obj = scene.objects.active
+        # TODO check object is not None
         positions, times, angular_positions = get_trajectory_from_path(scene.datasetPath)
+        # set animation lenght
         bpy.context.scene.frame_end = times[-1] * fps
-        obj.animation_data_clear()
         # create animation data
+        obj.animation_data_clear()
         obj.animation_data_create()
         # create a new animation data action
         obj.animation_data.action = bpy.data.actions.new(name="MyAction")
@@ -97,6 +101,19 @@ class AnimateObject(bpy.types.Operator):
                 fcurve_rotation.keyframe_points[i].interpolation = 'CONSTANT'
                 fcurve_rotation.keyframe_points[i].co = times[i] * fps, angular_positions[index,i]
         print("Done adding keyframes!")
+        curveData = bpy.data.curves.new('myCurve', type='CURVE')
+        curveData.dimensions = '3D'
+        curveData.resolution_u = 2
+
+        # map coords to spline
+        polyline = curveData.splines.new('POLY')
+        polyline.points.add(positions_lenght)
+        for i, location in enumerate(positions.T):
+            polyline.points[i].co = (*location,1)
+        curveOB = bpy.data.objects.new('myCurve', curveData)
+        curveData.bevel_depth = 0.01
+        # attach to scene and validate context
+        scene.objects.link(curveOB)
         return {'FINISHED'}
 
 

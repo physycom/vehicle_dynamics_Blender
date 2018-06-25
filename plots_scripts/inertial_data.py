@@ -33,7 +33,7 @@ from src.clean_data_utils import converts_measurement_units, reduce_disturbance,
     sign_inversion_is_necessary, get_stationary_times, correct_xy_orientation
 from src.gnss_utils import get_positions, get_velocities, align_to_world, get_accelerations
 from src.input_manager import parse_input, InputType
-from src.integrate import rotate_accelerations, simps_integrate
+from src.integrate import rotate_accelerations, cumulative_integrate
 
 if __name__ == '__main__':
 
@@ -90,13 +90,13 @@ if __name__ == '__main__':
     plt.show()
 
     initial_speed = np.array([[gps_speed[0]],[0],[0]])
-    correct_velocities = simps_integrate(times, accelerations, initial_speed, adjust_data=real_velocities, adjust_frequency=1)
+    correct_velocities = cumulative_integrate(times, accelerations, initial_speed, adjust_data=real_velocities, adjust_frequency=1)
 
     if sign_inversion_is_necessary(correct_velocities):
         accelerations *= -1
         correct_velocities *= -1
 
-    correct_position = simps_integrate(times, correct_velocities, adjust_data=gnss_positions, adjust_frequency=1)
+    correct_position = cumulative_integrate(times, correct_velocities, adjust_data=gnss_positions, adjust_frequency=1)
 
     print("Execution time: %s seconds" % (time.time() - start_time))
 

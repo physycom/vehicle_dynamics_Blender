@@ -34,7 +34,7 @@ from src.clean_data_utils import converts_measurement_units, reduce_disturbance,
     get_stationary_times
 from src.gnss_utils import get_positions, get_velocities, get_accelerations
 from src.input_manager import parse_input, InputType
-from src.integrate import simps_integrate
+from src.integrate import cumulative_integrate
 
 if __name__ == '__main__':
 
@@ -89,10 +89,10 @@ if __name__ == '__main__':
 
     real_velocities_module = np.reshape(real_velocities_module, (1, len(real_velocities_module)))
 
-    correct_velocities_module = simps_integrate(times, accelerations_module, real_velocities_module[0,0], adjust_data=real_velocities_module,
-                                         adjust_frequency=1)
+    correct_velocities_module = cumulative_integrate(times, accelerations_module, real_velocities_module[0, 0], adjust_data=real_velocities_module,
+                                                     adjust_frequency=1)
 
-    correct_distance = simps_integrate(times, correct_velocities_module, adjust_data=gnss_distance, adjust_frequency=1)
+    correct_distance = cumulative_integrate(times, correct_velocities_module, adjust_data=gnss_distance, adjust_frequency=1)
 
     print("Execution time: %s seconds" % (time.time() - start_time))
 

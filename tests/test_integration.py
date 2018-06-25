@@ -27,7 +27,7 @@ from unittest import TestCase
 import numpy as np
 from SpringTrajectoryGenerator import SpringTrajectoryGenerator
 from CircularTrajectoryGenerator import CircularTrajectoryGenerator
-from src.integrate import simps_integrate, quad_integrate, trapz_integrate, \
+from src.integrate import cumulative_integrate, quad_integrate, trapz_integrate, \
     rotate_accelerations
 
 
@@ -69,7 +69,7 @@ def get_integrated_trajectory(method):
 class IntegrationTest(TestCase):
 
     def test_trajectory_generator(self):
-        error = integrate_and_test(simps_integrate)
+        error = integrate_and_test(cumulative_integrate)
         self.assertLess(error.mean(), 0.05)
 
     def test_simple_integrate(self):
@@ -82,7 +82,7 @@ class IntegrationTest(TestCase):
         cosines = np.array([cos(x) for x in times])
         vector = np.vstack((sinus, cosines, -sinus))
         # for each integration method
-        for method in [quad_integrate, trapz_integrate, simps_integrate]:
+        for method in [quad_integrate, trapz_integrate, cumulative_integrate]:
             # numerical integrate with selected method
             integrated = method(times, vector, initial=[-1, 0, 1])
             # calculate absolute error
@@ -136,8 +136,8 @@ class RotationTest(TestCase):
         accelerations, angular_positions = rotate_accelerations(times, accelerations, angular_velocities,
                                                                 initial_angular_position=[0, 0, np.pi / 2])
         initial_speed = np.array([[0], [circular_tra.initial_tangential_speed], [0]])
-        velocities = simps_integrate(times, accelerations, initial_speed)
+        velocities = cumulative_integrate(times, accelerations, initial_speed)
         initial_position = np.array([[1], [0], [0]])
-        positions = simps_integrate(times, velocities, initial_position)
+        positions = cumulative_integrate(times, velocities, initial_position)
         # if the integrated trajectory and the analytical one are equal thant both the integrator and the rotator works
         np.testing.assert_array_almost_equal(positions, circular_tra.trajectory, decimal=3)

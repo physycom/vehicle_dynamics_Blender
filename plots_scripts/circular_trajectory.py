@@ -30,7 +30,7 @@ import numpy as np
 from src.integrate import rotate_accelerations
 from plots_scripts.plot_utils import plot_vectors
 from tests.test_integration import CircularTrajectoryGenerator, \
-    simps_integrate
+    cumulative_integrate
 
 if __name__ == "__main__":
     # plots circular trajectory and integrated one for debugging and comparison purpose
@@ -42,9 +42,9 @@ if __name__ == "__main__":
     accelerations, angular_positions = rotate_accelerations(times, accelerations, angular_velocities,
                                                             initial_angular_position=[0, 0, np.pi / 2])
     initial_speed = np.array([[0], [trajectory_gen.initial_tangential_speed], [0]])
-    velocities = simps_integrate(times, accelerations, initial_speed)
+    velocities = cumulative_integrate(times, accelerations, initial_speed)
     initial_position = np.array([[1], [0], [0]])
-    positions = simps_integrate(times, velocities, initial_position)
+    positions = cumulative_integrate(times, velocities, initial_position)
     plot_vectors([positions])
     plot_vectors([trajectory_gen.trajectory])
     # blocking call to show all plots

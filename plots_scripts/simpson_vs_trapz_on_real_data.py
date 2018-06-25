@@ -1,5 +1,9 @@
 """
-Entry point to src module functionalities.
+Plot integrated trajectory by trapezoid and simpson integration techniques.
+
+Thesis:show that even if trapezoid is less precise, with small interval the difference in unnoticeable
+
+Conclusion: using weighted average the difference is noticeable because error accumulates through time.
 
 This file is part of inertial_to_blender project,
 a Blender simulation generator from inertial sensor data on cars.
@@ -23,7 +27,6 @@ Credits: Federico Bertani, Stefano Sinigardi, Alessandro Fabbri, Nico Curti
 
 """
 
-
 import numpy as np
 
 from src.clean_data_utils import converts_measurement_units, reduce_disturbance, \
@@ -31,18 +34,16 @@ from src.clean_data_utils import converts_measurement_units, reduce_disturbance,
     sign_inversion_is_necessary, get_stationary_times, correct_xy_orientation
 from src.gnss_utils import get_positions, get_velocities, align_to_world
 from src.input_manager import parse_input, InputType
-from src.integrate import cumulative_integrate, rotate_accelerations
+from src.integrate import cumulative_integrate, rotate_accelerations, trapz_integrate_delta, simps_integrate_delta
+from plots_scripts.plot_utils import plot_vectors
 
 
-def get_trajectory_from_path(path):
-    """
-    parse input file from path, clean data and integrate positions
+import matplotlib.pyplot as plt
 
-    :param path: string input file
-    :return: 3 numpy array: 3xn position, 1xn times, 4xn angular position as quaternions
-    """
-
+if __name__ == '__main__':
     window_size = 20
+    # TODO change path before committing!
+    path = '../tests/test_fixtures/split_log_1321_1322_USB0_unmodified-fullinertial.txt'
 
     # currently default format is unmodified fullinertial but other formats are / will be supported
     times, coordinates, altitudes, gps_speed, accelerations, angular_velocities = parse_input(path, [
@@ -80,7 +81,8 @@ def get_trajectory_from_path(path):
     accelerations[2] -= accelerations[2, stationary_times[0][0]:stationary_times[0][-1]].mean()
 
     # correct alignment in xy plane
-    accelerations = correct_xy_orientation(accelerations, angular_velocities)
+    # commented out for performance reason, it shouldn be necessary for this experiment.
+    #accelerations = correct_xy_orientation(accelerations, angular_velocities)
 
     # convert to laboratory frame of reference
     accelerations, angular_positions = rotate_accelerations(times, accelerations, angular_velocities)
@@ -90,13 +92,20 @@ def get_trajectory_from_path(path):
 
     initial_speed = np.array([[gps_speed[0]], [0], [0]])
     # integrate acceleration with gss velocities correction
-    correct_velocities = cumulative_integrate(times, accelerations, initial_speed, adjust_data=real_velocities,
-                                              adjust_frequency=1)
-
+    import time
+    start_time = time.time()
+    correct_velocities_simps = cumulative_integrate(times, accelerations, initial_speed, simps_integrate_delta, adjust_data=real_velocities,
+                                                    adjust_frequency=1)
+    print("time integrating velocities simps " + str(start_time-time.time()))
+    start_time = time.time()
+    correct_velocities_trapz = cumulative_integrate(times, accelerations, initial_speed, trapz_integrate_delta, adjust_data=real_velocities,
+                                                    adjust_frequency=1)
+    print("time integrating velocities trapz " + str(start_time - time.time()))
+    plot_vectors([correct_velocities_simps,correct_velocities_trapz],["simpson", "trapz"])
+    plt.show()
+    exit()
     if sign_inversion_is_necessary(correct_velocities):
         accelerations *= -1
         correct_velocities *= -1
 
     correct_position = cumulative_integrate(times, correct_velocities, adjust_data=gnss_positions, adjust_frequency=1)
-
-    return correct_position, times, angular_positions
