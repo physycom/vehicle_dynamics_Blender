@@ -133,7 +133,7 @@ def simps_integrate_delta(times, vectors):
         deltas[:, -1] = np.array([integrator(x[1], x[2]) for integrator in integrators])
     return deltas
 
-def cumulative_integrate(times, vectors, initial=None, delta_integrate_func = trapz_integrate, adjust_data=None, adjust_frequency=None):
+def cumulative_integrate(times, vectors, initial=None, delta_integrate_func = simps_integrate_delta, adjust_data=None, adjust_frequency=None):
     """
     Optional initial data reset with custom frequency
 
