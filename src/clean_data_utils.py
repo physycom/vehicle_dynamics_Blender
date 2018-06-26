@@ -59,36 +59,40 @@ def get_stationary_times(gps_speed):
     :return: list of tuples, each one with start and final timestamp of a stationary time index
     """
 
-    speed_threshold = 0.2  # 0.2 m/s
-    min_stationary_time_length = 10
-    # Find times where gps speed is inside threshold
-    # Didn't use np.nonzero because i needed contiguous slices and also check on length of slice
-    boolean_vect = np.bitwise_and(gps_speed > -speed_threshold, gps_speed < speed_threshold)
-    import math
-    # set a value that can't exist as index
-    first_true = math.inf
-    last_true = math.inf
+    speed_threshold = 1e-15  # 0.2 m/s
     stationary_times = []
-    for i, x in enumerate(boolean_vect):
-        if first_true == math.inf and x is np.bool_(True):
-            # enter stationary time mode
-            first_true = i
-        if first_true != math.inf and x is np.bool_(True):
-            # add a timestamp to slice
-            last_true = i
-        if first_true != math.inf and last_true != math.inf and x is np.bool_(False):
-            # end slice
-            # if slice length is greater than a minimum length
-            if last_true - first_true > min_stationary_time_length:
-                # add slice to stationary times list
-                stationary_times.append((first_true, last_true))
-            # reset
-            first_true = math.inf
-            last_true = math.inf
-    # handle case where stationary times not ends before data ends
-    if first_true != math.inf and last_true != math.inf:
-        stationary_times.append((first_true, last_true))
-    # TODO raise exception if there are no stationary times
+    # repeat until at least a stationary time is found
+    while (len(stationary_times)==0):
+        min_stationary_time_length = 10
+        # Find times where gps speed is inside threshold
+        # Didn't use np.nonzero because i needed contiguous slices and also check on length of slice
+        boolean_vect = np.bitwise_and(gps_speed > -speed_threshold, gps_speed < speed_threshold)
+        import math
+        # set a value that can't exist as index
+        first_true = math.inf
+        last_true = math.inf
+        for i, x in enumerate(boolean_vect):
+            if first_true == math.inf and x is np.bool_(True):
+                # enter stationary time mode
+                first_true = i
+            if first_true != math.inf and x is np.bool_(True):
+                # add a timestamp to slice
+                last_true = i
+            if first_true != math.inf and last_true != math.inf and x is np.bool_(False):
+                # end slice
+                # if slice length is greater than a minimum length
+                if last_true - first_true > min_stationary_time_length:
+                    # add slice to stationary times list
+                    stationary_times.append((first_true, last_true))
+                # reset
+                first_true = math.inf
+                last_true = math.inf
+        # handle case where stationary times not ends before data ends
+        if first_true != math.inf and last_true != math.inf:
+            stationary_times.append((first_true, last_true))
+        # TODO raise exception if there are no stationary times
+        # increase speed threshold in case stationary times are not found
+        speed_threshold += 0.1
     return stationary_times
 
 

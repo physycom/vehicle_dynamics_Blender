@@ -50,13 +50,13 @@ class ClearDataUtilsTest(unittest.TestCase):
         stationary_times = get_stationary_times(self.gps_speed)
         _, self.angular_velocities = reduce_disturbance(self.times, self.angular_velocities,reduce_disturbance_window_size)
         # get initial stationary time angular speed around x-axis
-        initial_stationary_time_gx_value = self.angular_velocities[0, 0:stationary_times[0][1]].mean()
+        initial_stationary_time_gx_value = self.angular_velocities[0, stationary_times[0][0]:stationary_times[0][1]].mean()
         # check there is a gyroscope drift
         assert abs(initial_stationary_time_gx_value) > drift_tolerance
         # call util to remove drift
         self.angular_velocities = clear_gyro_drift(self.angular_velocities,stationary_times)
         # re-calculate initial angular speed around x-axis
-        initial_stationary_time_gx_value = self.angular_velocities[0, 0:stationary_times[0][1]].mean()
+        initial_stationary_time_gx_value = self.angular_velocities[0, stationary_times[0][0]:stationary_times[0][1]].mean()
         # check that the drift is lower than a tolerance
         assert abs(initial_stationary_time_gx_value) < drift_tolerance
 
