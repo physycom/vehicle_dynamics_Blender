@@ -102,7 +102,7 @@ def get_vectors(df, input_type):
         gps_speed = df['speed'].values.T
         return times, gps_speed, accelerations, angular_velocities
     elif input_type == InputType.FULLINERTIAL:
-        coordinates = df[['lon', 'lat']].values.T
+        coordinates = df[['lat', 'lon']].values.T
         altitudes = df['alt'].values.T
         accelerations = df[['ax', 'ay', 'az']].values.T
         angular_velocities = df[['gx', 'gy', 'gz']].values.T
@@ -116,7 +116,7 @@ def get_vectors(df, input_type):
         clean_gnss_data = df.dropna(subset=['lat'])
         # interpolate coordinates
         from scipy.interpolate import interp1d
-        gnss_data = clean_gnss_data[['lon', 'lat', 'alt']].values
+        gnss_data = clean_gnss_data[['lat', 'lon', 'alt']].values
         gnss_data_timestamp = clean_gnss_data['timestamp'].values
         coord_func = interp1d(x=gnss_data_timestamp, y=gnss_data.T,kind='quadratic', fill_value='extrapolate')
         # filter inertial records from dataframe
