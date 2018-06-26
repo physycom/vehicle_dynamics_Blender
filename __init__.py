@@ -73,7 +73,8 @@ class AnimateObject(bpy.types.Operator):
         from src import get_trajectory_from_path
         scene = context.scene
         # get current frame per seconds value
-        fps = bpy.context.scene.render.fps
+        fps = scene.render.fps
+        scene.unit_settings.system = 'METRIC'
         # get current selected object in scene
         obj = scene.objects.active
         # TODO check object is not None
@@ -85,6 +86,7 @@ class AnimateObject(bpy.types.Operator):
         obj.animation_data_create()
         # create a new animation data action
         obj.animation_data.action = bpy.data.actions.new(name="MyAction")
+        obj.rotation_mode = 'QUATERNION'
         positions_lenght = positions.shape[1]
         # create f-curve for each axis
         for index in range(3):

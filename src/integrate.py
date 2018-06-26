@@ -54,7 +54,8 @@ def trapz_integrate(times, vector, initial=np.zeros(3)):
     return result_vector
 
 def trapz_integrate_delta(times, vector):
-    return ((vector[:,:-1] + vector[:,1:]) * (times[:-1] - times[1:]))/2
+    # multiplying by 0.5 faster than dividing by two
+    return ((vector[:,:-1] + vector[:,1:]) * (times[:-1] - times[1:])) * 0.5
 
 
 def simps_integrate_delta(times, vectors):
