@@ -113,16 +113,12 @@ def get_accelerations(times, velocities, win_size=320):
         accelerations[1, i - win_size:i] = delta_y / delta_t
     return accelerations
 
-
-def align_to_world(gnss_position, vectors, stationary_times, angular_positions):
+def get_first_motion_time(stationary_times):
     """
-    Align accelerations to world system (x axis going to east, y to north)
+    Get first motion time enough long
 
-    :param gnss_position: 3xn numpy array. positions from gnss data
-    :param vectors: 3xn numpy array
-    :param stationary_times: list of tuples
-    :param angular_positions:
-    :return: 2 numpy array: 3xn numpy array of rotated accelerations and 4xn anguar positions as quaternions
+    :param stationary_times: list of 2-tuples
+    :return: 2 int: start and end of first motion
     """
 
     # iterate until a motion time (not stationary) is found
@@ -140,12 +136,40 @@ def align_to_world(gnss_position, vectors, stationary_times, angular_positions):
             break
         else:
             size += increase
+    return motion_time_start, motion_time_end
+
+def initial_horizontal_angle(gnss_position,motion_time_start, motion_time_end):
+    """
+    Get initial horizontal angle from positions
+
+    :param gnss_position: 3xn numpy array. positions from gnss data
+    :param motion_time_start: int first motion start timestamp
+    :param motion_time_end: int first motion end timestamp
+    :return:
+    """
     # get mean vector from first 100 vector of motion time
     gnss_start = gnss_position[:, motion_time_start:motion_time_end].mean(axis=1)
+    angle_gnss = arctan2(gnss_start[1], gnss_start[0])
+    return angle_gnss
+
+def align_to_world(gnss_position, vectors, stationary_times, angular_positions):
+    """
+    Align accelerations to world system (x axis going to east, y to north)
+
+    :param gnss_position: 3xn numpy array. positions from gnss data
+    :param vectors: 3xn numpy array
+    :param stationary_times: list of tuples
+    :param angular_positions:
+    :return: 2 numpy array: 3xn numpy array of rotated accelerations and 4xn anguar positions as quaternions
+    """
+
+    motion_time_start, motion_time_end  = get_first_motion_time(stationary_times)
+    # get mean vector from first 100 vector of motion time
     vector_start = vectors[:, motion_time_start:motion_time_start + 100].mean(axis=1)
     from scipy import sin, cos, arctan2
     # get angle of rotation
-    angle_gnss = arctan2(gnss_start[1], gnss_start[0])
+    angle_gnss = initial_horizontal_angle(gnss_position,motion_time_start,motion_time_end)
+    # read documentation for arctan2 usage, pay attention to pi periodicity
     angle_vector = arctan2(vector_start[1], vector_start[0])
     rotation_angle = angle_gnss - angle_vector
     message = "Rotation vector to {} degrees to align to world".format(np.rad2deg(rotation_angle))
@@ -158,3 +182,15 @@ def align_to_world(gnss_position, vectors, stationary_times, angular_positions):
     new_vectors[0] = cos(rotation_angle) * vectors[0] - sin(rotation_angle) * vectors[1]
     new_vectors[1] = sin(rotation_angle) * vectors[0] + cos(rotation_angle) * vectors[1]
     return new_vectors, angular_positions.T
+
+def get_initial_angular_position(gnss_position, stationary_times):
+    """
+    Get initial angular position in axis-angle notation
+
+    :param gnss_position: 3xn numpy array. positions from gnss data
+    :param stationary_times: list of 2-tuples
+    :return: initial angular position in axis-angle notation
+    """
+    motion_time_start, motion_time_end = get_first_motion_time(stationary_times)
+    angle_gnss = initial_horizontal_angle(gnss_position, motion_time_start, motion_time_end)
+    return np.array([0,0,angle_gnss])

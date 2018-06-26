@@ -29,7 +29,7 @@ import numpy as np
 from src.clean_data_utils import converts_measurement_units, reduce_disturbance, \
     clear_gyro_drift, correct_z_orientation, normalize_timestamp, \
     sign_inversion_is_necessary, get_stationary_times, correct_xy_orientation
-from src.gnss_utils import get_positions, get_velocities, align_to_world
+from src.gnss_utils import get_positions, get_velocities, align_to_world, get_initial_angular_position
 from src.input_manager import parse_input, InputType
 from src.integrate import cumulative_integrate, rotate_accelerations
 
@@ -82,8 +82,10 @@ def get_trajectory_from_path(path):
     # correct alignment in xy plane
     accelerations = correct_xy_orientation(accelerations, angular_velocities)
 
+    initial_angular_position = get_initial_angular_position(gnss_positions,stationary_times)
+
     # convert to laboratory frame of reference
-    accelerations, angular_positions = rotate_accelerations(times, accelerations, angular_velocities)
+    accelerations, angular_positions = rotate_accelerations(times, accelerations, angular_velocities,initial_angular_position)
 
     # rotate to align y to north, x to east
     accelerations, angular_positions = align_to_world(gnss_positions, accelerations, stationary_times,angular_positions)
