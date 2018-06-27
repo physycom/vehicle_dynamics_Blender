@@ -93,7 +93,7 @@ def get_vectors(df, input_type):
     :param input_type: InputType enum
     :return:
         times, gps_speed, accelerations, angular_velocities if input is inertial \n
-        times, coordinates, altitudes, gps_speed, accelerations, angular_velocities if input is fullinertial
+        times, coordinates, altitudes, gps_speed, heading, accelerations, angular_velocities if input is fullinertial
     """
     if input_type == InputType.INERTIAL or input_type == InputType.UNMOD_INERTIAL:
         accelerations = df[['ax', 'ay', 'az']].values.T
@@ -108,7 +108,8 @@ def get_vectors(df, input_type):
         angular_velocities = df[['gx', 'gy', 'gz']].values.T
         times = df['timestamp'].values.T
         gps_speed = df['speed'].values.T
-        return times, coordinates, altitudes, gps_speed, accelerations, angular_velocities
+        heading = df['heading'].values.T
+        return times, coordinates, altitudes, gps_speed, heading, accelerations, angular_velocities
     elif input_type == InputType.UNMOD_FULLINERTIAL:
         # TODO use DataFrame.interpolate
         # the input has gnss and inertial records mixed
@@ -116,9 +117,10 @@ def get_vectors(df, input_type):
         clean_gnss_data = df.dropna(subset=['lat'])
         # interpolate coordinates
         from scipy.interpolate import interp1d
-        gnss_data = clean_gnss_data[['lat', 'lon', 'alt']].values
+        gnss_data = clean_gnss_data[['lat', 'lon', 'alt', 'heading', 'speed']].values
         gnss_data_timestamp = clean_gnss_data['timestamp'].values
-        coord_func = interp1d(x=gnss_data_timestamp, y=gnss_data.T,kind='quadratic', fill_value='extrapolate')
+        coord_func = interp1d(x=gnss_data_timestamp, y=gnss_data.T,kind='linear',
+                              fill_value='extrapolate', assume_sorted=True)
         # filter inertial records from dataframe
         df = df.dropna(subset=['ax'])
         accelerations = df[['ax', 'ay', 'az']].values.T
@@ -128,8 +130,11 @@ def get_vectors(df, input_type):
         # TODO improve performance
         coordinates = np.array([(coord_func(time)[0], coord_func(time)[1]) for time in times]).T
         altitudes = np.array([coord_func(time)[2] for time in times]).T
-        gps_speed = df['speed'].values.T
-        return times, coordinates, altitudes, gps_speed, accelerations, angular_velocities
+        heading = np.array([coord_func(time)[3] for time in times]).T
+        gps_speed = np.array([coord_func(time)[4] for time in times]).T
+        # correct heading
+        heading = 270 - heading
+        return times, coordinates, altitudes, gps_speed, heading, accelerations, angular_velocities
 
 
 def parse_input(filepath, accepted_types=[input_type for input_type in InputType], slice_start=None, slice_end=None):
@@ -144,7 +149,7 @@ def parse_input(filepath, accepted_types=[input_type for input_type in InputType
     :param slice_end: integer
     :return:
         times, gps_speed, accelerations, angular_velocities if input is inertial \n
-        times, coordinates, gps_speed, accelerations, angular_velocities if input is fullinertial
+        times, coordinates, gps_speed, heading, accelerations, angular_velocities if input is fullinertial
     :raises:
         Exception if format is not accepted or recognized
     """

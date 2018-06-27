@@ -96,7 +96,7 @@ def get_stationary_times(gps_speed):
     return stationary_times
 
 
-def converts_measurement_units(accelerations, angular_velocities, gps_speed=None, coordinates=None):
+def converts_measurement_units(accelerations, angular_velocities, gps_speed=None, coordinates=None, heading=None):
     """ Convert physics quantity measurement unit
 
     Convert accelerations from g units to m/s^2
@@ -120,6 +120,8 @@ def converts_measurement_units(accelerations, angular_velocities, gps_speed=None
     if gps_speed is not None:
         # multiply to km/h -> m/s constant
         gps_speed *= constants.kmh
+    if heading is not None:
+        heading *= constants.degree
 
 
 def normalize_timestamp(times):
@@ -315,9 +317,9 @@ def correct_z_orientation(accelerations, angular_velocities, stationary_times):
     :return: numpy arrays: rotated accelerations, rotated angular velocities
     """
 
-    # get value of g in the first stationary time
-    g = accelerations[:, stationary_times[0][0]:stationary_times[0][1]].mean(axis=1)
-
+    # get value of g in all stationary times
+    g = np.mean(np.concatenate(
+        [accelerations[:,stationary_time[0]:stationary_time[1]] for stationary_time in stationary_times],axis=1),axis=1)
     def align_from_g_vector(accelerations, angular_velocities, g):
         g_norm = norm(g)
         u = cross(g, (0, 0, 1))
@@ -325,6 +327,7 @@ def correct_z_orientation(accelerations, angular_velocities, stationary_times):
         u_unit = u / norm(u)
         # rotate angle
         theta = arccos(dot(g, (0, 0, 1)) / g_norm)
+        print("rotating vectors of "+str(np.rad2deg(theta))+" degrees align to z")
         rotator = Quaternion.exp(Quaternion(vector=(theta * u_unit)) / 2)
         rotated_accelerations = np.array(
             [(rotator * Quaternion(vector=acceleration_vector) * rotator.conjugate).vector

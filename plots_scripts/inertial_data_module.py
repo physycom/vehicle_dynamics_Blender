@@ -48,7 +48,7 @@ if __name__ == '__main__':
     #input pats
     parking_fullinertial_unmod = 'tests/test_fixtures/parking.tsv'
     # parse input
-    times, coordinates, altitudes, gps_speed , accelerations, angular_velocities = parse_input(parking_fullinertial_unmod, [InputType.UNMOD_FULLINERTIAL])
+    times, coordinates, altitudes, gps_speed, heading, accelerations, angular_velocities = parse_input(parking_fullinertial_unmod, [InputType.UNMOD_FULLINERTIAL])
 
     converts_measurement_units(accelerations, angular_velocities, gps_speed, coordinates)
 

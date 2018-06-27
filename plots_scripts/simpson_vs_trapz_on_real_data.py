@@ -45,7 +45,7 @@ if __name__ == '__main__':
     path = '../tests/test_fixtures/parking.tsv'
 
     # currently default format is unmodified fullinertial but other formats are / will be supported
-    times, coordinates, altitudes, gps_speed, accelerations, angular_velocities = parse_input(path, [
+    times, coordinates, altitudes, gps_speed, heading, accelerations, angular_velocities = parse_input(path, [
         InputType.UNMOD_FULLINERTIAL],slice_end=40000)
 
     converts_measurement_units(accelerations, angular_velocities, gps_speed, coordinates)

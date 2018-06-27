@@ -45,13 +45,13 @@ def get_trajectory_from_path(path):
     window_size = 20
 
     # currently default format is unmodified fullinertial but other formats are / will be supported
-    times, coordinates, altitudes, gps_speed, accelerations, angular_velocities = parse_input(path, [
+    times, coordinates, altitudes, gps_speed, heading, accelerations, angular_velocities = parse_input(path, [
         InputType.UNMOD_FULLINERTIAL])
 
-    converts_measurement_units(accelerations, angular_velocities, gps_speed, coordinates)
+    converts_measurement_units(accelerations, angular_velocities, gps_speed, coordinates, heading)
 
     # get positions from GNSS data
-    gnss_positions, headings = get_positions(coordinates, altitudes)
+    gnss_positions, headings_2 = get_positions(coordinates, altitudes)
 
     # reduce accelerations disturbance
     times, accelerations = reduce_disturbance(times, accelerations, window_size)
@@ -66,7 +66,7 @@ def get_trajectory_from_path(path):
     real_speeds = np.linalg.norm(real_velocities, axis=0)
 
     # get time windows where vehicle is stationary
-    stationary_times = get_stationary_times(real_speeds)
+    stationary_times = get_stationary_times(gps_speed)
 
     # clear gyroscope drift
     angular_velocities = clear_gyro_drift(angular_velocities, stationary_times)
@@ -80,13 +80,13 @@ def get_trajectory_from_path(path):
     accelerations[2] -= accelerations[2, stationary_times[0][0]:stationary_times[0][-1]].mean()
 
     # correct alignment in xy plane
-    accelerations = correct_xy_orientation(accelerations, angular_velocities)
+    #accelerations = correct_xy_orientation(accelerations, angular_velocities)
 
     motion_time = get_first_motion_time(stationary_times,gnss_positions)
     initial_angular_position = get_initial_angular_position(gnss_positions,motion_time)
 
     # convert to laboratory frame of reference
-    accelerations, angular_positions = rotate_accelerations(times, accelerations, angular_velocities, initial_angular_position)
+    accelerations, angular_positions = rotate_accelerations(times, accelerations, angular_velocities, heading, initial_angular_position)
 
     # rotate to align y to north, x to east
     accelerations = align_to_world(gnss_positions, accelerations, motion_time)

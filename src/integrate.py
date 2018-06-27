@@ -171,7 +171,7 @@ def cumulative_integrate(times, vectors, initial=None, delta_integrate_func = si
     return result_vectors
 
 
-def rotate_accelerations(times, accelerations, angular_velocities, initial_angular_position=np.array([0, 0, 0])):
+def rotate_accelerations(times, accelerations, angular_velocities, headings, initial_angular_position=np.array([0, 0, 0])):
     """
     Integrate angular velocities and rotate acceleration vector accondingly.
     Moves from local frame of reference to laboratory one.
@@ -179,10 +179,12 @@ def rotate_accelerations(times, accelerations, angular_velocities, initial_angul
     :param times: 1xn numpy array of timestamp
     :param accelerations: 3xn numpy array of accelerations
     :param angular_velocities: 3xn numpy array of angular velocities in rad/s
-    :param initial_angular_positiLebensrumon: 1x3 numpy array containing initial angular position vector
+    :param headings: 1xn angular potion around z from gnss data
+    :param initial_angular_position: 1x3 numpy array containing initial angular position vector
     :return: 2 numpy array: 3xn acceleration vector and 4xn angular position as quaternion
     """
 
+    #TODO correct with heading
     # integrate angular_velocities to get a delta theta vector
     delta_thetas = simps_integrate_delta(times,angular_velocities)
     initial_quaternion = Quaternion.exp(Quaternion(vector=initial_angular_position)/2)
