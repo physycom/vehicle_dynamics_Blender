@@ -98,9 +98,8 @@ class GnssUtilsTests(TestCase):
         angular_positions = np.vstack((np.full(100, 1),
                                        np.zeros((3, 100))))
         # basic stationary time, the point is never stationary
-        stationary_times = [(100, 100)]
+        motion_time = 50
         # call method to test
-        rotate_trajectory, _ = align_to_world(world_aligned_trajectory, trajectory, stationary_times,
-                                                    angular_positions)
+        rotate_trajectory = align_to_world(world_aligned_trajectory, trajectory, motion_time)
         # check if rotated trajectory is aligned to world
         np.testing.assert_array_almost_equal(rotate_trajectory, world_aligned_trajectory)

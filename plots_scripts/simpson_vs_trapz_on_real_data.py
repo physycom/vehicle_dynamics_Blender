@@ -42,12 +42,11 @@ import matplotlib.pyplot as plt
 
 if __name__ == '__main__':
     window_size = 20
-    # TODO change path before committing!
-    path = '../tests/test_fixtures/split_log_1321_1322_USB0_unmodified-fullinertial.txt'
+    path = '../tests/test_fixtures/parking.tsv'
 
     # currently default format is unmodified fullinertial but other formats are / will be supported
     times, coordinates, altitudes, gps_speed, accelerations, angular_velocities = parse_input(path, [
-        InputType.UNMOD_FULLINERTIAL])
+        InputType.UNMOD_FULLINERTIAL],slice_end=40000)
 
     converts_measurement_units(accelerations, angular_velocities, gps_speed, coordinates)
 

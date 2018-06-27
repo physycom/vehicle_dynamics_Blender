@@ -88,7 +88,7 @@ def get_stationary_times(gps_speed):
                 first_true = math.inf
                 last_true = math.inf
         # handle case where stationary times not ends before data ends
-        if first_true != math.inf and last_true != math.inf:
+        if first_true != math.inf and last_true != math.inf and (last_true - first_true) > min_stationary_time_length:
             stationary_times.append((first_true, last_true))
         # TODO raise exception if there are no stationary times
         # increase speed threshold in case stationary times are not found

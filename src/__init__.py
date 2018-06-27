@@ -29,7 +29,7 @@ import numpy as np
 from src.clean_data_utils import converts_measurement_units, reduce_disturbance, \
     clear_gyro_drift, correct_z_orientation, normalize_timestamp, \
     sign_inversion_is_necessary, get_stationary_times, correct_xy_orientation
-from src.gnss_utils import get_positions, get_velocities, align_to_world, get_initial_angular_position
+from src.gnss_utils import get_positions, get_velocities, align_to_world, get_initial_angular_position, get_first_motion_time
 from src.input_manager import parse_input, InputType
 from src.integrate import cumulative_integrate, rotate_accelerations
 
@@ -82,13 +82,16 @@ def get_trajectory_from_path(path):
     # correct alignment in xy plane
     accelerations = correct_xy_orientation(accelerations, angular_velocities)
 
-    initial_angular_position = get_initial_angular_position(gnss_positions,stationary_times)
+    motion_time = get_first_motion_time(stationary_times,gnss_positions)
+    initial_angular_position = get_initial_angular_position(gnss_positions,motion_time)
 
     # convert to laboratory frame of reference
-    accelerations, angular_positions = rotate_accelerations(times, accelerations, angular_velocities,initial_angular_position)
+    accelerations, angular_positions = rotate_accelerations(times, accelerations, angular_velocities, initial_angular_position)
 
     # rotate to align y to north, x to east
-    accelerations, angular_positions = align_to_world(gnss_positions, accelerations, stationary_times,angular_positions)
+    accelerations = align_to_world(gnss_positions, accelerations, motion_time)
+    # angular position doesn't need to be aligned to world if starting angular position is already aligned and following
+    # angular positions are calculated from that
 
     initial_speed = np.array([[gps_speed[0]], [0], [0]])
     # integrate acceleration with gss velocities correction
