@@ -42,12 +42,15 @@ def plot_vectors(vectors_list, label_list=None, title=None, tri_dim=True):
 
     axis_labels = ['x', 'y', 'z']
     label_list = label_list if (label_list is not None) else [" "] * len(vectors_list)
-    fig = plt.figure(figsize=plt.figaspect(0.5))
+    if (tri_dim):
+        fig = plt.figure(figsize=plt.figaspect(0.5))
+        axes_2d = fig.add_subplot(1, 2, 1)
+        axes_3d = fig.add_subplot(1, 2, 2, projection='3d')
+    else:
+        fig = plt.figure()
+        axes_2d = fig.add_subplot(1, 1, 1)
     if (title):
         fig.suptitle(title)
-    axes_2d = fig.add_subplot(1, 2, 1)
-    if (tri_dim):
-        axes_3d = fig.add_subplot(1, 2, 2, projection='3d')
     for vectors, label in zip(vectors_list, label_list):
         # if vector is multidimensional
         if (vectors.ndim > 1):
