@@ -110,9 +110,10 @@ class RotationTest(TestCase):
             [1, 1, 1],
             [0, 0, 0],
             [0, 0, 0]])
+        headings = None
         # test also initial angular position with different angle for testing quaternion product order correctness
         vectors_to_rotate, angular_velocity = \
-            rotate_accelerations(times, vectors_to_rotate, angular_velocity, np.array([0, 0, pi]))
+            rotate_accelerations(times, vectors_to_rotate, angular_velocity, headings, np.array([0, 0, pi]))
         expected_result = np.array([
             [-1, 0, 1],
             [0, -1, 0],
@@ -132,8 +133,9 @@ class RotationTest(TestCase):
         accelerations = circular_tra.get_analytical_local_accelerations()
         # get angular velocities
         angular_velocities = circular_tra.get_angular_velocities()
+        heading = None
         # convert to laboratory frame of reference
-        accelerations, angular_positions = rotate_accelerations(times, accelerations, angular_velocities,
+        accelerations, angular_positions = rotate_accelerations(times, accelerations, angular_velocities,heading,
                                                                 initial_angular_position=[0, 0, np.pi / 2])
         initial_speed = np.array([[0], [circular_tra.initial_tangential_speed], [0]])
         velocities = cumulative_integrate(times, accelerations, initial_speed)
