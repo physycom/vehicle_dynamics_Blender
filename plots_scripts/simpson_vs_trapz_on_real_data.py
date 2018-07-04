@@ -32,7 +32,7 @@ import numpy as np
 from src.clean_data_utils import converts_measurement_units, reduce_disturbance, \
     clear_gyro_drift, correct_z_orientation, normalize_timestamp, \
     sign_inversion_is_necessary, get_stationary_times, correct_xy_orientation
-from src.gnss_utils import get_positions, get_velocities, align_to_world
+from src.gnss_utils import get_positions, get_velocities, align_to_world, get_initial_angular_position, get_first_motion_time
 from src.input_manager import parse_input, InputType
 from src.integrate import cumulative_integrate, rotate_accelerations, trapz_integrate_delta, simps_integrate_delta
 from plots_scripts.plot_utils import plot_vectors
@@ -66,7 +66,7 @@ if __name__ == '__main__':
     real_speeds = np.linalg.norm(real_velocities, axis=0)
 
     # get time windows where vehicle is stationary
-    stationary_times = get_stationary_times(real_speeds)
+    stationary_times = get_stationary_times(gps_speed)
 
     # clear gyroscope drift
     angular_velocities = clear_gyro_drift(angular_velocities, stationary_times)
@@ -84,10 +84,15 @@ if __name__ == '__main__':
     #accelerations = correct_xy_orientation(accelerations, angular_velocities)
 
     # convert to laboratory frame of reference
-    accelerations, angular_positions = rotate_accelerations(times, accelerations, angular_velocities)
+    motion_time = get_first_motion_time(stationary_times, gnss_positions)
+    initial_angular_position = get_initial_angular_position(gnss_positions, motion_time)
+
+    # convert to laboratory frame of reference
+    accelerations, angular_positions = rotate_accelerations(times, accelerations, angular_velocities, heading,
+                                                            initial_angular_position)
 
     # rotate to align y to north, x to east
-    accelerations, angular_positions = align_to_world(gnss_positions, accelerations, stationary_times,angular_positions)
+    accelerations = align_to_world(gnss_positions, accelerations, motion_time)
 
     initial_speed = np.array([[gps_speed[0]], [0], [0]])
     # integrate acceleration with gss velocities correction
@@ -100,11 +105,11 @@ if __name__ == '__main__':
     correct_velocities_trapz = cumulative_integrate(times, accelerations, initial_speed, trapz_integrate_delta, adjust_data=real_velocities,
                                                     adjust_frequency=1)
     print("time integrating velocities trapz " + str(start_time - time.time()))
-    plot_vectors([correct_velocities_simps,correct_velocities_trapz],["simpson", "trapz"])
+    plot_vectors([correct_velocities_simps[0],correct_velocities_trapz[0]],["simpson", "trapz"])
     plt.show()
     exit()
-    if sign_inversion_is_necessary(correct_velocities):
+    if sign_inversion_is_necessary(correct_velocities_simps):
         accelerations *= -1
-        correct_velocities *= -1
+        correct_velocities_simps *= -1
 
-    correct_position = cumulative_integrate(times, correct_velocities, adjust_data=gnss_positions, adjust_frequency=1)
+    #correct_position = cumulative_integrate(times, correct_velocities, adjust_data=gnss_positions, adjust_frequency=1)
