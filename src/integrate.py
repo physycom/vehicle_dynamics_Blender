@@ -75,63 +75,27 @@ def simps_integrate_delta(times, vectors):
     columns = vectors.shape[1]
     # create vector to keep results
     deltas = np.zeros((rows, columns))
-    # if vector is even
-    if columns % 2 == 0:
-        # makes main integration on an odd number of elements
-        columns = columns - 1
-    integrators = None
     # iterate through vector to integrate
-    for i in range(0, columns - 2):
+    for j in range(0, columns - 2):
         # create (x_i,y_i) points
-        x = times[i:i + 3]
+        x = times[j:j + 3]
         # 3x3 array
-        vector_locals = vectors[:, i:i + 3]
-
-        def get_parab_integrator(x, vector_locals):
-            """ Returns array of functions
-
-            Each function integrates a interpolated parabola in (x,vector_locals[i])
-            """
-
-            integrators = []
-            for i, y in enumerate(vector_locals):
-                # create matrix to solve linear system
-                matrix = np.array([
-                    [x[0] ** 2, x[0], 1],
-                    [x[1] ** 2, x[1], 1],
-                    [x[2] ** 2, x[2], 1],
-                ])
-                # solve linear system with matrix inversion and dot product
-                A, B, C = np.dot(np.linalg.inv(matrix), y)
-
-                # use classes because closure didn't works
-                class Integrator:
-
-                    def __init__(self, A, B, C):
-                        self.A = A
-                        self.B = B
-                        self.C = C
-
-                    def integrator_fun(self, x1, x3):
-                        return self.A / 3 * (x3 ** 3 - x1 ** 3) + self.B / 2 * (x3 ** 2 - x1 ** 2) + self.C * (x3 - x1)
-
-                integrators.append(Integrator(A, B, C).integrator_fun)
-            return integrators
-
-        integrators = get_parab_integrator(x, vector_locals)
-        # for each integrator function get integral value only of the "first part" of the parabola
-        deltas[:, i + 1] = np.array([integrator(x[0], x[1]) for integrator in integrators])
-    # fill last element element with already calculated integrator
-    # get integral value of "last part" of the parabola
-    deltas[:, i + 2] = np.array([integrator(x[1], x[2]) for integrator in integrators])
-    # if the vector is even the last element is still zero
-    if all(deltas[:, -1]) == 0:
-        # interpolate a parabola for last three elements
-        x = times[-3:]
-        y = vectors[:, -3:]
-        integrators = get_parab_integrator(x, y)
-        # get integral value of "last part" of the parabola
-        deltas[:, -1] = np.array([integrator(x[1], x[2]) for integrator in integrators])
+        vector_locals = vectors[:, j:j + 3]
+        for i, y in enumerate(vector_locals):
+            # create matrix to solve linear system
+            matrix = np.array([
+                [x[0] ** 2, x[0], 1],
+                [x[1] ** 2, x[1], 1],
+                [x[2] ** 2, x[2], 1],
+            ])
+            # solve linear system
+            A, B, C = np.linalg.solve(matrix,y)
+            # get integral value only of the "first part" of the parabola
+            deltas[i, j + 1] = A / 3 * (x[1] ** 3 - x[0] ** 3) + B / 2 * (x[1] ** 2 - x[0] ** 2) + C * (x[1] - x[0])
+            if j == columns - 3:
+                # fill last element element with already calculated values
+                # get integral value of "last part" of the parabola
+                deltas[i, j + 2] = A / 3 * (x[2] ** 3 - x[1] ** 3) + B / 2 * (x[2] ** 2 - x[1] ** 2) + C * (x[2] - x[1])
     return deltas
 
 def cumulative_integrate(times, vectors, initial=None, delta_integrate_func = simps_integrate_delta, adjust_data=None, adjust_frequency=None):
