@@ -1,9 +1,11 @@
 bl_info = {
     "name": "Inertial-GNSS car data to blender",
     "author": "Federico Bertani",
+    "location": "View3D > Tools",
     "description": "Blender simulation generator from inertial sensor data on car",
-    "category": "Object",
+    "category": "Object", # TODO other possible categories are Animation and Physics
     "version": (0,0,1),
+    "tracker_url" : "https://github.com/physycom/inertial_to_blender/issues"
 }
 
 import bpy
@@ -183,6 +185,7 @@ def register():
 
 def unregister():
     # TODO uncomment on public repo
+    # TODO move to implicit unregistration (module)
     #addon_updater_ops.unregister()
     #bpy.utils.unregister_class(AutoUpdatePreferences)
     #bpy.utils.unregister_class(UpdaterPanel)
