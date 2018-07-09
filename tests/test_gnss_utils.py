@@ -25,7 +25,8 @@ Credits: Federico Bertani, Stefano Sinigardi, Alessandro Fabbri, Nico Curti
 
 from unittest import TestCase
 import numpy as np
-from src.gnss_utils import get_positions, get_velocities, get_accelerations, align_to_world
+from src.gnss_utils import get_positions, get_velocities, get_accelerations
+from src import align_to_world
 from CircularTrajectoryGenerator import CircularTrajectoryGenerator
 
 

@@ -27,7 +27,7 @@ Credits: Federico Bertani, Stefano Sinigardi, Alessandro Fabbri, Nico Curti
 import matplotlib.pyplot as plt
 import numpy as np
 
-from src.integrate import rotate_accelerations
+from src import rotate_accelerations
 from plots_scripts.plot_utils import plot_vectors
 from tests.test_integration import CircularTrajectoryGenerator, \
     cumulative_integrate

@@ -26,9 +26,6 @@ Credits: Federico Bertani, Stefano Sinigardi, Alessandro Fabbri, Nico Curti
 """
 
 import numpy as np
-from pyquaternion import Quaternion
-
-
 
 def quad_integrate(times, vector, initial=np.zeros(3)):
     current = initial
@@ -55,7 +52,7 @@ def trapz_integrate(times, vector, initial=np.zeros(3)):
 
 def trapz_integrate_delta(times, vector):
     # multiplying by 0.5 faster than dividing by two
-    return ((vector[:,:-1] + vector[:,1:]) * (times[:-1] - times[1:])) * 0.5
+    return ((vector[:,:-1] + vector[:,1:]) * (times[1:]-times[:-1])) * 0.5
 
 
 def simps_integrate_delta(times, vectors):
@@ -133,32 +130,3 @@ def cumulative_integrate(times, vectors, initial=None, delta_integrate_func = si
             # cumulative sum
             result_vectors[:,i] = result_vectors[:,i-1] + delta_vectors[:,i]
     return result_vectors
-
-
-def rotate_accelerations(times, accelerations, angular_velocities, headings, initial_angular_position=np.array([0, 0, 0])):
-    """
-    Integrate angular velocities and rotate acceleration vector accondingly.
-    Moves from local frame of reference to laboratory one.
-
-    :param times: 1xn numpy array of timestamp
-    :param accelerations: 3xn numpy array of accelerations
-    :param angular_velocities: 3xn numpy array of angular velocities in rad/s
-    :param headings: 1xn angular potion around z from gnss data
-    :param initial_angular_position: 1x3 numpy array containing initial angular position vector
-    :return: 2 numpy array: 3xn acceleration vector and 4xn angular position as quaternion
-    """
-
-    #TODO correct with heading
-    # integrate angular_velocities to get a delta theta vector
-    delta_thetas = simps_integrate_delta(times,angular_velocities)
-    initial_quaternion = Quaternion.exp(Quaternion(vector=initial_angular_position)/2)
-    # create quaternion representing angular position (angular position = rotation_versor * rotation_angle)
-    quaternions = np.array([Quaternion.exp(Quaternion(vector=delta_theta)/2)
-         for delta_theta in delta_thetas[:,1:].T])
-    # cant use np.cumprod becuase in quaternion to rotate first by q1 then by q2 the aggregated quaternion is q2q1 not q1q2
-    # so use reduce
-    from functools import reduce
-    quaternions = reduce(lambda array, element: [*array, element * array[-1]], quaternions, [initial_quaternion])
-    accelerations = np.array(list(map(lambda x:x[1].rotate(x[0]),zip(accelerations.T,quaternions))))
-    angular_positions = np.array([quaternion.elements for quaternion in quaternions])
-    return accelerations.T, angular_positions.T

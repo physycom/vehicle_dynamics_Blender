@@ -32,9 +32,10 @@ import numpy as np
 from src.clean_data_utils import converts_measurement_units, reduce_disturbance, \
     clear_gyro_drift, correct_z_orientation, normalize_timestamp, \
     sign_inversion_is_necessary, get_stationary_times, correct_xy_orientation
-from src.gnss_utils import get_positions, get_velocities, align_to_world, get_initial_angular_position, get_first_motion_time
+from src.gnss_utils import get_positions, get_velocities, get_initial_angular_position, get_first_motion_time
 from src.input_manager import parse_input, InputType
-from src.integrate import cumulative_integrate, rotate_accelerations, trapz_integrate_delta, simps_integrate_delta
+from src.integrate import cumulative_integrate, trapz_integrate_delta, simps_integrate_delta
+from src import rotate_accelerations, align_to_world
 from plots_scripts.plot_utils import plot_vectors
 
 
@@ -46,7 +47,7 @@ if __name__ == '__main__':
 
     # currently default format is unmodified fullinertial but other formats are / will be supported
     times, coordinates, altitudes, gps_speed, heading, accelerations, angular_velocities = parse_input(path, [
-        InputType.UNMOD_FULLINERTIAL],slice_end=40000)
+        InputType.UNMOD_FULLINERTIAL])
 
     converts_measurement_units(accelerations, angular_velocities, gps_speed, coordinates)
 
@@ -98,18 +99,17 @@ if __name__ == '__main__':
     # integrate acceleration with gss velocities correction
     import time
     start_time = time.time()
-    correct_velocities_simps = cumulative_integrate(times, accelerations, initial_speed, simps_integrate_delta, adjust_data=real_velocities,
-                                                    adjust_frequency=1)
-    print("time integrating velocities simps " + str(start_time-time.time()))
+    correct_velocities_simps = cumulative_integrate(times, accelerations, initial_speed, simps_integrate_delta)
+    print("time integrating velocities simps " + str(time.time()-start_time))
     start_time = time.time()
-    correct_velocities_trapz = cumulative_integrate(times, accelerations, initial_speed, trapz_integrate_delta, adjust_data=real_velocities,
-                                                    adjust_frequency=1)
-    print("time integrating velocities trapz " + str(start_time - time.time()))
-    plot_vectors([correct_velocities_simps[0],correct_velocities_trapz[0]],["simpson", "trapz"])
-    plt.show()
-    exit()
-    if sign_inversion_is_necessary(correct_velocities_simps):
-        accelerations *= -1
-        correct_velocities_simps *= -1
+    correct_velocities_trapz = cumulative_integrate(times, accelerations, initial_speed, trapz_integrate_delta)
+    print("time integrating velocities trapz " + str(time.time()-start_time))
 
-    #correct_position = cumulative_integrate(times, correct_velocities, adjust_data=gnss_positions, adjust_frequency=1)
+    correct_position_simps = cumulative_integrate(times, correct_velocities_simps)
+    correct_position_trapz = cumulative_integrate(times,correct_velocities_trapz)
+    plt.plot(correct_position_simps[0],label='PaIS')
+    plt.plot(correct_position_trapz[0],label='Trapezoid')
+    plt.ylabel('meters')
+    plt.xlabel('seconds')
+    plt.legend()
+    plt.show()

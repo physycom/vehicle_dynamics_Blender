@@ -25,6 +25,7 @@ Credits: Federico Bertani, Stefano Sinigardi, Alessandro Fabbri, Nico Curti
 
 """
 
+import matplotlib
 import matplotlib.pyplot as plt
 
 from tests.test_integration import integrate_and_test, SpringTrajectoryGenerator, \
@@ -35,8 +36,10 @@ if __name__ == '__main__':
     quad_error = integrate_and_test(quad_integrate)
     trapz_error = integrate_and_test(trapz_integrate)
     simps_error = integrate_and_test(cumulative_integrate)
-    plt.plot(quad_error, label='quad')
-    plt.plot(trapz_error, label='trapz')
-    plt.plot(simps_error, label='simps')
+    #plt.plot(quad_error, 'C1', label='square')
+    plt.plot(trapz_error, 'C2', label='trapezoid')
+    plt.plot(simps_error, 'C3', label='PaIS')
+    plt.xlabel = 'x'
+    plt.xlabel = 'y'
     plt.legend()
     plt.show()

@@ -25,7 +25,6 @@ Credits: Federico Bertani, Stefano Sinigardi, Alessandro Fabbri, Nico Curti
 
 from math import cos
 from scipy import arctan2
-from pyquaternion import Quaternion
 
 import numpy as np
 
@@ -140,33 +139,6 @@ def get_first_motion_time(stationary_times,positions):
         i += 1
     motion_time = i
     return motion_time
-
-
-def align_to_world(gnss_position, vectors, motion_time):
-    """
-    Align accelerations to world system (x axis going to east, y to north)
-
-    :param gnss_position: 3xn numpy array. positions from gnss data
-    :param vectors: 3xn numpy array
-    :param stationary_times: list of tuples
-    :param angular_positions:
-    :return: 2 numpy array: 3xn numpy array of rotated accelerations and 4xn anguar positions as quaternions
-    """
-
-    from scipy import sin, cos, arctan2
-    # get angle of rotation
-    angle_gnss = np.arctan2(gnss_position[1,motion_time],gnss_position[0,motion_time])
-    # TODO pay attention using acceleration
-    angle_vector = arctan2(vectors[1,motion_time], vectors[0,motion_time])
-    #rotation_angle = angle_gnss - angle_vector
-    rotation_angle = angle_gnss
-    message = "Rotation vector to {} degrees to align to world".format(np.rad2deg(rotation_angle))
-    print(message)
-    new_vectors = vectors.copy()
-    # rotate vector in xy plane
-    new_vectors[0] = cos(rotation_angle) * vectors[0] - sin(rotation_angle) * vectors[1]
-    new_vectors[1] = sin(rotation_angle) * vectors[0] + cos(rotation_angle) * vectors[1]
-    return new_vectors
 
 
 def get_initial_angular_position(gnss_position, motion_time):
