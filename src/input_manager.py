@@ -119,7 +119,7 @@ def get_vectors(df, input_type):
         from scipy.interpolate import interp1d
         gnss_data = clean_gnss_data[['lat', 'lon', 'alt', 'heading', 'speed']].values
         gnss_data_timestamp = clean_gnss_data['timestamp'].values
-        coord_func = interp1d(x=gnss_data_timestamp, y=gnss_data.T,kind='linear',
+        coord_func = interp1d(x=gnss_data_timestamp, y=gnss_data.T,kind='quadratic',
                               fill_value='extrapolate', assume_sorted=True)
         # filter inertial records from dataframe
         df = df.dropna(subset=['ax'])
@@ -127,11 +127,11 @@ def get_vectors(df, input_type):
         angular_velocities = df[['gx', 'gy', 'gz']].values.T
         times = df['timestamp'].values.T
         # create coordinates vectors on inertial timestamp
-        # TODO improve performance
-        coordinates = np.array([(coord_func(time)[0], coord_func(time)[1]) for time in times]).T
-        altitudes = np.array([coord_func(time)[2] for time in times]).T
-        heading = np.array([coord_func(time)[3] for time in times]).T
-        gps_speed = np.array([coord_func(time)[4] for time in times]).T
+        coordinatesX,coordinatesY,altitudes,heading,gps_speed = zip(*[coord_func(time) for time in times])
+        coordinates = np.array([x for x in zip(coordinatesX,coordinatesY)]).T
+        altitudes = np.array(altitudes).T
+        heading = np.array(heading).T
+        gps_speed = np.array(gps_speed).T
         # correct heading
         heading = 270 - heading
         return times, coordinates, altitudes, gps_speed, heading, accelerations, angular_velocities
