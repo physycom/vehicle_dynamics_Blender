@@ -1,7 +1,7 @@
 import numpy as np
 from pyquaternion import Quaternion
 
-from integrate import simps_integrate_delta
+from src.integrate import simps_integrate_delta
 
 
 def rotate_accelerations(times, accelerations, angular_velocities, headings,
