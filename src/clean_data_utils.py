@@ -144,7 +144,7 @@ def sign_inversion_is_necessary(velocities):
 
 
 def clear_gyro_drift(angular_velocities, stationary_times):
-    """ Remove gyroscope natural drift
+    """ Remove gyroscope natural offset
 
     This function assumes the car is stationary in the first 10000 measurements
 
@@ -152,17 +152,17 @@ def clear_gyro_drift(angular_velocities, stationary_times):
     :param stationary_times: list of tuples (start,end)
     """
 
-    # get drift on first stationary time
-    main_drift = angular_velocities[:, stationary_times[0][0]:stationary_times[0][1]].mean(axis=1)
+    # get offset on first stationary time
+    main_offset = angular_velocities[:, stationary_times[0][0]:stationary_times[0][1]].mean(axis=1)
     # remove on all data
-    angular_velocities = (angular_velocities.T - main_drift).T
+    angular_velocities = (angular_velocities.T - main_offset).T
     # for remaining stationary times
     for stationary_time in stationary_times[1:]:
         start = stationary_time[0]
         end = stationary_time[1]
-        # drift can now be changed by heat, remove only from start time of stationary time to end of data
-        drift = angular_velocities[:, start:end].mean(axis=1)
-        angular_velocities[:, start:] = (angular_velocities[:, start:].T - drift).T
+        # offset can now be changed by heat, remove only from start time of stationary time to end of data
+        offset = angular_velocities[:, start:end].mean(axis=1)
+        angular_velocities[:, start:] = (angular_velocities[:, start:].T - offset).T
     return angular_velocities
 
 
