@@ -39,7 +39,7 @@ class InertialBlenderPanel(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
 
-        col = layout.column(align=True)
+        col = layout.column()
         col.operator("physicom.load_dataset")
         col.prop(context.scene, "datasetPath")
         col.operator("physicom.animate_object")
