@@ -63,7 +63,7 @@ if __name__ == '__main__':
 
     # with "final" times now get velocities and
     real_velocities = get_velocities(times, gnss_positions)
-    # scalar speed from gnns position (better than from dataset because avoids Kalmar filter)
+    # scalar speed from GNSS position (better than from dataset because avoids Kalmar filter)
     real_speeds = np.linalg.norm(real_velocities, axis=0)
 
     # get time windows where vehicle is stationary
@@ -74,7 +74,7 @@ if __name__ == '__main__':
     # set times start to 0
     normalize_timestamp(times)
 
-    # correct z-axis aligment
+    # correct z-axis alignment
     accelerations, angular_velocities = correct_z_orientation(accelerations, angular_velocities, stationary_times)
 
     # remove g

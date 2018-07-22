@@ -40,15 +40,16 @@ class InertialBlenderPanel(bpy.types.Panel):
         layout = self.layout
 
         col = layout.column()
-        col.operator("physicom.load_dataset")
+        col.operator("physycom.load_dataset")
         col.prop(context.scene, "datasetPath")
-        col.operator("physicom.animate_object")
+        col.operator("physycom.animate_object")
 
 
+# noinspection SpellCheckingInspection
 class LoadDataset(bpy.types.Operator):
     """Object Cursor Array"""
     # TODO use more standard name
-    bl_idname = "physicom.load_dataset"
+    bl_idname = "physycom.load_dataset"
     bl_label = "Load dataset"
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -67,7 +68,7 @@ class LoadDataset(bpy.types.Operator):
 class AnimateObject(bpy.types.Operator):
     """Object Cursor Array"""
     # TODO use more standard name
-    bl_idname = "physicom.animate_object"
+    bl_idname = "physycom.animate_object"
     bl_label = "Animate object"
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -135,7 +136,7 @@ def call_system_command(command):
 def register():
     # register auto-update module
     # placed this on top so the plugin degenerate to a non working version
-    # this can be fixed by a new relase
+    # this can be fixed by a new release
     # TODO uncomment on public repo
     #addon_updater_ops.register(bl_info)
     #bpy.utils.register_class(AutoUpdatePreferences)

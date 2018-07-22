@@ -7,7 +7,7 @@ from src.integrate import simps_integrate_delta
 def rotate_accelerations(times, accelerations, angular_velocities, headings,
                          initial_angular_position=np.array([0, 0, 0])):
     """
-    Integrate angular velocities and rotate acceleration vector accondingly.
+    Integrate angular velocities and rotate acceleration vector accordingly.
     Moves from local frame of reference to laboratory one.
 
     :param times: 1xn numpy array of timestamp
@@ -25,7 +25,8 @@ def rotate_accelerations(times, accelerations, angular_velocities, headings,
     # create quaternion representing angular position (angular position = rotation_versor * rotation_angle)
     quaternions = np.array([Quaternion.exp(Quaternion(vector=delta_theta) / 2)
                             for delta_theta in delta_thetas[:, 1:].T])
-    # cant use np.cumprod becuase in quaternion to rotate first by q1 then by q2 the aggregated quaternion is q2q1 not q1q2
+    # cant use np.cumprod because in quaternion to rotate first by q1 then by q2
+    # the aggregated quaternion is q2q1 not q1q2
     # so use reduce
     from functools import reduce
     quaternions = reduce(lambda array, element: [*array, element * array[-1]], quaternions, [initial_quaternion])
@@ -42,7 +43,7 @@ def align_to_world(gnss_position, vectors, motion_time):
     :param vectors: 3xn numpy array
     :param stationary_times: list of tuples
     :param angular_positions:
-    :return: 2 numpy array: 3xn numpy array of rotated accelerations and 4xn anguar positions as quaternions
+    :return: 2 numpy array: 3xn numpy array of rotated accelerations and 4xn angular positions as quaternions
     """
 
     from scipy import sin, cos, arctan2
