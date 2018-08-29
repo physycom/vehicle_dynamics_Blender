@@ -30,6 +30,28 @@ import numpy as np
 from src.clean_data_utils import converts_measurement_units, reduce_disturbance, normalize_timestamp, get_stationary_times, clear_gyro_drift
 from src.input_manager import parse_input, InputType
 
+
+def show_gyroscope_drift(title):
+    fig = plt.figure()
+    fig1_ax1 = fig.add_subplot(1, 1, 1)
+    fig1_ax1.set_title(title)
+    fig1_ax1.set_xlabel("time (s)")
+    fig1_ax1.set_ylabel("speed (m/s)", color='b')
+    fig1_ax1.tick_params("y", color='b')
+    fig1_ax1.plot(times, gps_speed, color='b')
+    # get ylim from ax1 to set it in ax2
+    ylim = fig1_ax1.get_ylim()
+    # create a second axis for onother data set
+    # to better visualize different scaled measures
+    fig1_ax2 = fig1_ax1.twinx()
+    fig1_ax2.set_ylabel("angular velocity (deg/s)", color='r')
+    fig1_ax2.tick_params("y", colors='r')
+    fig1_ax2.plot(times, -angular_velocities[2], color='r')
+    # set ax1 ylim to have equal vertical limits
+    fig1_ax2.set_ylim(ylim)
+    plt.legend()
+
+
 if __name__ == "__main__":
     window_size = 20
 
@@ -49,35 +71,11 @@ if __name__ == "__main__":
     # get time windows where vehicle is stationary
     stationary_times = get_stationary_times(gps_speed)
 
-    fig = plt.figure()
-    fig1_ax1 = fig.add_subplot(1, 1, 1)
-    fig1_ax1.set_title("Gyroscope offset before removal")
-    fig1_ax1.set_xlabel("time (s)")
-    fig1_ax1.set_ylabel("speed (m/s)", color='b')
-    fig1_ax1.tick_params("y", color='b')
-    fig1_ax1.plot(times, gps_speed,color='b')
-    ylim = fig1_ax1.get_ylim()
-    fig1_ax2 = fig1_ax1.twinx()
-    fig1_ax2.set_ylabel("angular velocity (deg/s)", color='r')
-    fig1_ax2.tick_params("y", colors='r')
-    fig1_ax2.plot(times, -angular_velocities[2], color='r')
-    fig1_ax2.set_ylim(ylim)
-    plt.legend()
+    show_gyroscope_drift("Gyroscope offset before removal")
 
     # clear gyroscope drift
     angular_velocities = clear_gyro_drift(angular_velocities, stationary_times)
 
-    fig2 = plt.figure()
-    fig2_ax1 = fig2.add_subplot(1, 1, 1)
-    fig2_ax1.set_title("Gyroscope offset after removal")
-    fig2_ax1.set_xlabel("time (s)")
-    fig2_ax1.set_ylabel("speed (m/s)",color='b')
-    fig2_ax1.tick_params("y", color='b')
-    fig2_ax1.plot(times, gps_speed)
-    fig2_ax2 = fig2_ax1.twinx()
-    fig2_ax2.set_ylabel("angular velocity (deg/s)", color='r')
-    fig2_ax2.tick_params("y", colors='r')
-    fig2_ax2.plot(times, -angular_velocities[2], color='r')
-    fig2_ax2.set_ylim(ylim)
-    plt.legend()
+    show_gyroscope_drift("Gyroscope offset after removal")
+
     plt.show()
