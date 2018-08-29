@@ -38,7 +38,6 @@ from src.integrate import cumulative_integrate
 from src import rotate_accelerations, align_to_world
 
 if __name__ == '__main__':
-
     window_size = 20
 
     # for benchmarking
@@ -47,7 +46,8 @@ if __name__ == '__main__':
     start_time = time.time()
 
     parking_fullinertial_unmod = 'tests/test_fixtures/parking.tsv'
-    times, coordinates, altitudes, gps_speed, heading, accelerations, angular_velocities = parse_input(parking_fullinertial_unmod, [InputType.UNMOD_FULLINERTIAL])
+    times, coordinates, altitudes, gps_speed, heading, accelerations, angular_velocities = parse_input(
+        parking_fullinertial_unmod, [InputType.UNMOD_FULLINERTIAL])
     converts_measurement_units(accelerations, angular_velocities, gps_speed, coordinates)
 
     # GNSS data handling
@@ -58,7 +58,7 @@ if __name__ == '__main__':
     # reduce angular velocities disturbance
     _, angular_velocities = reduce_disturbance(times, angular_velocities, window_size)
     # truncate others array to match length of times array
-    gnss_positions = gnss_positions[:,round(window_size/2):-round(window_size/2)]
+    gnss_positions = gnss_positions[:, round(window_size / 2):-round(window_size / 2)]
 
     real_velocities = get_velocities(times, gnss_positions)
     real_acc = get_accelerations(times, real_velocities)
@@ -75,12 +75,12 @@ if __name__ == '__main__':
     accelerations[2] -= accelerations[2, stationary_times[0][0]:stationary_times[0][-1]].mean()
 
     plot_vectors([accelerations[0:2], angular_velocities[2]],
-                          ['inertial_ax', 'omega_z'],title="inertial accelerations before rotations",tri_dim=False)
+                 ['inertial_ax', 'omega_z'], title="inertial accelerations before rotations", tri_dim=False)
 
-    accelerations = correct_xy_orientation(accelerations,angular_velocities)
+    accelerations = correct_xy_orientation(accelerations, angular_velocities)
 
     plot_vectors([accelerations[0:2], angular_velocities[2]],
-                          ['inertial_ax', 'omega_z'],title="inertial accelerations after rotations",tri_dim=False)
+                 ['inertial_ax', 'omega_z'], title="inertial accelerations after rotations", tri_dim=False)
 
     # convert to laboratory frame of reference
     motion_time = get_first_motion_time(stationary_times, gnss_positions)
@@ -93,13 +93,14 @@ if __name__ == '__main__':
     # rotate to align y to north, x to east
     accelerations = align_to_world(gnss_positions, accelerations, motion_time)
 
-    figure = plot_vectors([accelerations[0:2],real_acc[0:2], angular_velocities[2]],
-                          ['inertial_ax','gnss_acc', 'omega_z'],
-                          title="comparison inertial and gnss accelerations in word reference frame",tri_dim=False)
+    figure = plot_vectors([accelerations[0:2], real_acc[0:2], angular_velocities[2]],
+                          ['inertial_ax', 'gnss_acc', 'omega_z'],
+                          title="comparison inertial and gnss accelerations in word reference frame", tri_dim=False)
     plt.show()
 
-    initial_speed = np.array([[gps_speed[0]],[0],[0]])
-    correct_velocities = cumulative_integrate(times, accelerations, initial_speed, adjust_data=real_velocities, adjust_frequency=1)
+    initial_speed = np.array([[gps_speed[0]], [0], [0]])
+    correct_velocities = cumulative_integrate(times, accelerations, initial_speed, adjust_data=real_velocities,
+                                              adjust_frequency=1)
 
     correct_position = cumulative_integrate(times, correct_velocities, adjust_data=gnss_positions, adjust_frequency=1)
 
@@ -107,7 +108,7 @@ if __name__ == '__main__':
 
     # plotting
 
-    figure = plot_vectors([correct_position,gnss_positions],['x integrated positions','x GNSS positions'])
+    figure = plot_vectors([correct_position, gnss_positions], ['x integrated positions', 'x GNSS positions'])
 
     lim3d = figure.axes[1].get_xbound()
     figure.axes[1].set_zbound(lim3d)
