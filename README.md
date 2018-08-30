@@ -10,12 +10,14 @@
 
 Reconstruct vehicle dynamics from sensors data by animating an object on Blender.
 
+Current version use accellerometer, gyroscope and GNSS module.
+
 The sensors data must be in [this format (FullInertial)](https://github.com/physycom/file_format_specifications/blob/master/formati_file.md).
 
 ## Install
 
 1. Download latest .zip release from [here](https://github.com/physycom/vehicle_dynamics_Blender/releases) 
-2. Install .zip as a blender common blender add-on as explained also [here](https://docs.blender.org/manual/en/dev/preferences/addons.html) 
+2. Install .zip as a blender common add-on as explained also [here](https://docs.blender.org/manual/en/dev/preferences/addons.html) 
 
 ## Usage
 
@@ -30,7 +32,7 @@ Once the add-on is istalled a new panel will be present in the lower section of 
 
 ## Contributing
 
-1. clone the repository 
+1. Clone the repository 
 	```
 	git clone https://github.com/physycom/vehicle_dynamics_Blender
 	```
