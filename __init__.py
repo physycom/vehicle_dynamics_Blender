@@ -4,7 +4,7 @@ bl_info = {
     "location": "View3D > Tools",
     "description": "Blender simulation generator from inertial sensor data on car",
     "category": "Object", # TODO other possible categories are Animation and Physics
-    "version": (0,0,1),
+    "version": (1,0,0),
     "tracker_url" : "https://github.com/physycom/inertial_to_blender/issues"
 }
 
@@ -12,6 +12,7 @@ import bpy
 import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent))
+# different name from project and deployed zip
 from . import addon_updater_ops
 import os
 import urllib.request
@@ -138,9 +139,9 @@ def register():
     # placed this on top so the plugin degenerate to a non working version
     # this can be fixed by a new release
     # TODO uncomment on public repo
-    #addon_updater_ops.register(bl_info)
-    #bpy.utils.register_class(AutoUpdatePreferences)
-    #bpy.utils.register_class(UpdaterPanel)
+    addon_updater_ops.register(bl_info)
+    bpy.utils.register_class(AutoUpdatePreferences)
+    bpy.utils.register_class(UpdaterPanel)
 
     # TODO handle permission errors
     addon_path = str(Path(__file__).parent)
@@ -187,9 +188,9 @@ def register():
 def unregister():
     # TODO uncomment on public repo
     # TODO move to implicit unregistration (module)
-    #addon_updater_ops.unregister()
-    #bpy.utils.unregister_class(AutoUpdatePreferences)
-    #bpy.utils.unregister_class(UpdaterPanel)
+    addon_updater_ops.unregister()
+    bpy.utils.unregister_class(AutoUpdatePreferences)
+    bpy.utils.unregister_class(UpdaterPanel)
     bpy.utils.unregister_class(InertialBlenderPanel)
     bpy.utils.unregister_class(AnimateObject)
     bpy.utils.unregister_class(LoadDataset)

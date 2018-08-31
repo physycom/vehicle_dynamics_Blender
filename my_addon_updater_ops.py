@@ -194,10 +194,10 @@ class addon_updater_check_now(bpy.types.Operator):
         # apply the UI settings
         settings = context.user_preferences.addons[__package__].preferences
         updater.set_check_interval(enable=settings.auto_check_update,
-                                   months=settings.updater_intrval_months,
-                                   days=settings.updater_intrval_days,
-                                   hours=settings.updater_intrval_hours,
-                                   minutes=settings.updater_intrval_minutes
+                                   months=settings.updater_interval_months,
+                                   days=settings.updater_interval_days,
+                                   hours=settings.updater_interval_hours,
+                                   minutes=settings.updater_interval_minutes
                                    )  # optional, if auto_check_update
 
         # input is an optional callback function
@@ -690,10 +690,10 @@ def check_for_update_background():
         return
     settings = addon_prefs.preferences
     updater.set_check_interval(enable=settings.auto_check_update,
-                               months=settings.updater_intrval_months,
-                               days=settings.updater_intrval_days,
-                               hours=settings.updater_intrval_hours,
-                               minutes=settings.updater_intrval_minutes
+                               months=settings.updater_interval_months,
+                               days=settings.updater_interval_days,
+                               hours=settings.updater_interval_hours,
+                               minutes=settings.updater_interval_minutes
                                )  # optional, if auto_check_update
 
     # input is an optional callback function
@@ -717,10 +717,10 @@ def check_for_update_nonthreaded(self, context):
 
     settings = context.user_preferences.addons[__package__].preferences
     updater.set_check_interval(enable=settings.auto_check_update,
-                               months=settings.updater_intrval_months,
-                               days=settings.updater_intrval_days,
-                               hours=settings.updater_intrval_hours,
-                               minutes=settings.updater_intrval_minutes
+                               months=settings.updater_interval_months,
+                               days=settings.updater_interval_days,
+                               hours=settings.updater_interval_hours,
+                               minutes=settings.updater_interval_minutes
                                )  # optional, if auto_check_update
 
     (update_ready, version, link) = updater.check_for_update(now=False)
@@ -821,7 +821,6 @@ def update_notice_box_ui(self, context):
 # Place inside UI draw using: addon_updater_ops.updaterSettingsUI(self, context)
 # or by: addon_updater_ops.updaterSettingsUI(context)
 def update_settings_ui(self, context, element=None):
-    print("package :"+__package__)
     # element is a UI element, such as layout, a row, column, or box
     if element == None: element = self.layout
     box = element.box()
@@ -855,13 +854,13 @@ def update_settings_ui(self, context, element=None):
     subrow.label("Interval between checks")
     subrow = subcol.row(align=True)
     checkcol = subrow.column(align=True)
-    checkcol.prop(settings, "updater_intrval_months")
+    checkcol.prop(settings, "updater_interval_months")
     checkcol = subrow.column(align=True)
-    checkcol.prop(settings, "updater_intrval_days")
+    checkcol.prop(settings, "updater_interval_days")
     checkcol = subrow.column(align=True)
-    checkcol.prop(settings, "updater_intrval_hours")
+    checkcol.prop(settings, "updater_interval_hours")
     checkcol = subrow.column(align=True)
-    checkcol.prop(settings, "updater_intrval_minutes")
+    checkcol.prop(settings, "updater_interval_minutes")
 
     # checking / managing updates
     row = box.row()
@@ -1193,12 +1192,12 @@ def register(bl_info):
     updater.user = "physycom"
 
     # choose your own repository, must match git name
-    updater.repo = "inertial_to_blender"
+    updater.repo = "vehicle_dynamics_Blender"
 
     # updater.addon = # define at top of module, MUST be done first
 
     # Website for manual addon download, optional but recommended to set
-    updater.website = "https://github.com/physycom/inertial_to_blender"
+    updater.website = "https://github.com/physycom/vehicle_dynamics_Blender"
 
     # Addon subfolder path
     # "sample/path/to/addon"
