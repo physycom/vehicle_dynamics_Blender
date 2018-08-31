@@ -16,9 +16,6 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-# file similar to https://github.com/CGCookie/blender-addon-updater/blob/master/addon_updater_ops.py
-# but customized for blender inertial
-
 import bpy
 from bpy.app.handlers import persistent
 import os
@@ -1136,8 +1133,6 @@ def skip_tag_function(self, tag):
 # A way to select from one or multiple attached donwloadable files from the
 # server, instead of downloading the default release/tag source code
 def select_link_function(self, tag):
-    link = ""
-
     # -- Default, universal case (and is the only option for GitLab/Bitbucket)
     link = tag["zipball_url"]
 
@@ -1167,14 +1162,11 @@ def select_link_function(self, tag):
 
 # registering the operators in this module
 def register(bl_info):
-    # See output to verify this register function is working properly
-    # print("Running updater reg")
-
     # safer failure in case of issue loading module
-    if updater.error != None:
-        error_message = "Exiting updater registration, " + updater.error
-        print(error_message)
+    if updater.error:
+        print("Exiting updater registration, " + updater.error)
         return
+    updater.clear_state()  # clear internal vars, avoids reloading oddities
 
     # confirm your updater "engine" (Github is default if not specified)
     updater.engine = "Github"

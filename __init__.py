@@ -40,10 +40,25 @@ class InertialBlenderPanel(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
 
+        # Call to check for update in background
+        # note: built-in checks ensure it runs at most once
+        # and will run in the background thread, not blocking
+        # or hanging blender
+        # Internally also checks to see if auto-check enabled
+        # and if the time interval has passed
+        addon_updater_ops.check_for_update_background()
+
         col = layout.column()
         col.operator("physycom.load_dataset")
         col.prop(context.scene, "datasetPath")
         col.operator("physycom.animate_object")
+
+        if addon_updater_ops.updater.update_ready == True:
+            layout.label("Update available", icon="INFO")
+        layout.label("")
+
+        # call built-in function with draw code/checks
+        addon_updater_ops.update_notice_box_ui(self, context)
 
 
 # noinspection SpellCheckingInspection
@@ -138,10 +153,8 @@ def register():
     # register auto-update module
     # placed this on top so the plugin degenerate to a non working version
     # this can be fixed by a new release
-    # TODO uncomment on public repo
     addon_updater_ops.register(bl_info)
     bpy.utils.register_class(AutoUpdatePreferences)
-    bpy.utils.register_class(UpdaterPanel)
 
     # TODO handle permission errors
     addon_path = str(Path(__file__).parent)
@@ -186,54 +199,12 @@ def register():
 
 
 def unregister():
-    # TODO uncomment on public repo
     # TODO move to implicit unregistration (module)
     addon_updater_ops.unregister()
     bpy.utils.unregister_class(AutoUpdatePreferences)
-    bpy.utils.unregister_class(UpdaterPanel)
     bpy.utils.unregister_class(InertialBlenderPanel)
     bpy.utils.unregister_class(AnimateObject)
     bpy.utils.unregister_class(LoadDataset)
-
-
-class UpdaterPanel(bpy.types.Panel):
-    """Panel to demo popup notice and ignoring functionality"""
-    bl_label = "Addon-updater Panel"
-    bl_idname = "OBJECT_PT_hello"
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'TOOLS'
-    bl_context = "objectmode"
-    bl_category = "Tools"
-
-    def draw(self, context):
-        layout = self.layout
-
-        # Call to check for update in background
-        # note: built-in checks ensure it runs at most once
-        # and will run in the background thread, not blocking
-        # or hanging blender
-        # Internally also checks to see if auto-check enabled
-        # and if the time interval has passed
-        addon_updater_ops.check_for_update_background()
-
-        layout.label("Demo Updater Addon")
-        layout.label("")
-
-        col = layout.column()
-        col.scale_y = 0.7
-        col.label("If an update is ready,")
-        col.label("popup triggered by opening")
-        col.label("this panel, plus a box ui")
-
-        # could also use your own custom drawing
-        # based on shared variables
-        if addon_updater_ops.updater.update_ready == True:
-            layout.label("Custom update message", icon="INFO")
-        layout.label("")
-
-        # call built-in function with draw code/checks
-        addon_updater_ops.update_notice_box_ui(self, context)
-
 
 # demo bare-bones preferences
 class AutoUpdatePreferences(bpy.types.AddonPreferences):
