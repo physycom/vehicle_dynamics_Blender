@@ -42,3 +42,11 @@ Once the add-on is istalled a new panel will be present in the lower section of 
 	```
 
 For additional documentation see [my bachelor thesis](https://github.com/federicoB/bachelor_thesis) on this project
+
+Semantic of version number:
+* patch for cosmetic or bugfixes enhancements
+* minor relase for performance or small features
+* major realese for big features
+
+## License
+This project is licensed under the terms of the GNU Affero General Public License v3.
