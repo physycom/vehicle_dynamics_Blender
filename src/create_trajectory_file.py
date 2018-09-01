@@ -40,9 +40,6 @@ if __name__ == '__main__':
     parser.add_argument('output', type=str, help='Output file')
     args = parser.parse_args()
 
-    # start benchmark
-    start_time = time.time()
-
     # get absolute path of input file
     my_path = os.path.abspath(os.path.dirname(__file__))
     path = os.path.join(my_path, args.input)
@@ -56,7 +53,4 @@ if __name__ == '__main__':
     # save to txt
     np.savetxt(args.output, timesPosition.T, delimiter=";", newline="\n")
 
-    # create benchmark result message
-    message = "Execution time: {} seconds | dataset size {}".format(time.time() - start_time, positions.shape[1])
 
-    print(message)

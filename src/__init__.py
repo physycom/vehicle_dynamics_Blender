@@ -34,7 +34,6 @@ from src.input_manager import parse_input, InputType
 from src.integrate import cumulative_integrate
 from src.rotations import rotate_accelerations, align_to_world
 
-
 def get_trajectory_from_path(path):
     """
     parse input file from path, clean data and integrate positions
