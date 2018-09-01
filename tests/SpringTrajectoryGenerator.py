@@ -27,7 +27,7 @@ Credits: Federico Bertani, Stefano Sinigardi, Alessandro Fabbri, Nico Curti
 """
 
 import numpy as np
-from pyquaternion import Quaternion
+from quaternion import quaternion
 from scipy import sin, cos
 from scipy.interpolate import interp1d
 from scipy.misc import derivative
@@ -79,9 +79,9 @@ class SpringTrajectoryGenerator(BaseTrajectoryGenerator):
         # angular position in all times
         self.th = np.array([thetacm(ti) for ti in self.times])
         # array of quaternion angular positions
-        thq = np.array([Quaternion.exp(Quaternion(vector=thetai) / 2) for thetai in self.th])
+        thq = np.array([np.exp(quaternion(*thetai) / 2) for thetai in self.th])
         # get successive rotations of initial point
-        r1 = np.array([(tq * Quaternion(vector=self.start_position) * tq.conjugate).vector for tq in thq])
+        r1 = np.array([(tq * quaternion(*self.start_position) * ~tq).components[1:4] for tq in thq])
         # add vertical offset to positions
         self.trajectory = r + r1.T
         # save angular position function as object attribute to future calls

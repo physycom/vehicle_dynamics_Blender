@@ -32,7 +32,7 @@ Credits: Federico Bertani, Stefano Sinigardi, Alessandro Fabbri, Nico Curti
 """
 
 import numpy as np
-from pyquaternion import Quaternion
+from quaternion import quaternion
 from scipy import constants
 from scipy import cross, dot, arccos, arctan2, cos, sin, pi
 from scipy.linalg import norm
@@ -328,12 +328,12 @@ def correct_z_orientation(accelerations, angular_velocities, stationary_times):
         # rotate angle
         theta = arccos(dot(g, (0, 0, 1)) / g_norm)
         print("rotating vectors of "+str(np.rad2deg(theta))+" degrees align to z")
-        rotator = Quaternion.exp(Quaternion(vector=(theta * u_unit)) / 2)
+        rotator = np.exp(quaternion(*(theta * u_unit)) / 2)
         rotated_accelerations = np.array(
-            [(rotator * Quaternion(vector=acceleration_vector) * rotator.conjugate).vector
+            [(rotator * quaternion(*acceleration_vector) * ~rotator).components[1:]
              for acceleration_vector in accelerations.T])
         rotated_angular_velocities = np.array(
-            [(rotator * Quaternion(vector=angular_velocity) * rotator.conjugate).vector
+            [(rotator * quaternion(*angular_velocity) * ~rotator).components[1:]
              for angular_velocity in angular_velocities.T])
         return rotated_accelerations.T, rotated_angular_velocities.T
 

@@ -1,5 +1,7 @@
 import numpy as np
-from pyquaternion import Quaternion
+# aliasing necessary for using quaternion name inside as local variable
+from quaternion import quaternion as Quaternion
+from quaternion import from_rotation_vector
 
 from src.integrate import simps_integrate_delta
 
@@ -21,17 +23,16 @@ def rotate_accelerations(times, accelerations, angular_velocities, headings,
     # TODO correct with heading
     # integrate angular_velocities to get a delta theta vector
     delta_thetas = simps_integrate_delta(times, angular_velocities)
-    initial_quaternion = Quaternion.exp(Quaternion(vector=initial_angular_position) / 2)
+    initial_quaternion = np.exp(Quaternion(*initial_angular_position) / 2)
     # create quaternion representing angular position (angular position = rotation_versor * rotation_angle)
-    quaternions = np.array([Quaternion.exp(Quaternion(vector=delta_theta) / 2)
-                            for delta_theta in delta_thetas[:, 1:].T])
+    quaternions = from_rotation_vector(delta_thetas[:, 1:].T)
     # cant use np.cumprod because in quaternion to rotate first by q1 then by q2
     # the aggregated quaternion is q2q1 not q1q2
     # so use reduce
     from functools import reduce
-    quaternions = reduce(lambda array, element: [*array, element * array[-1]], quaternions, [initial_quaternion])
-    accelerations = np.array(list(map(lambda x: x[1].rotate(x[0]), zip(accelerations.T, quaternions))))
-    angular_positions = np.array([quaternion.elements for quaternion in quaternions])
+    quaternions = np.array(reduce(lambda array, element: [*array, element * array[-1]], quaternions, [initial_quaternion]))
+    accelerations = np.array(list(map(lambda x: (x[1] * Quaternion(*x[0]) * ~x[1]).components[1:], zip(accelerations.T, quaternions))))
+    angular_positions = np.array([quaternion.components for quaternion in quaternions])
     return accelerations.T, angular_positions.T
 
 
