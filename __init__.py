@@ -4,7 +4,7 @@ bl_info = {
     "location": "View3D > Tools",
     "description": "Blender simulation generator from inertial sensor data on car",
     "category": "Object", # TODO other possible categories are Animation and Physics
-    "version": (1,1,0),
+    "version": (1,1,1),
     "tracker_url" : "https://github.com/physycom/inertial_to_blender/issues"
 }
 
@@ -14,10 +14,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent))
 # different name from project and deployed zip
 from . import addon_updater_ops
-import os
-import urllib.request
-
-from subprocess import call
+from blender import bootstrap
 
 from bpy.props import StringProperty
 
@@ -89,6 +86,7 @@ class AnimateObject(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
+        bootstrap.check_modules_existence()
         from src import get_trajectory_from_path
         scene = context.scene
         # get current frame per seconds value
@@ -138,60 +136,13 @@ class AnimateObject(bpy.types.Operator):
         return {'FINISHED'}
 
 
-def call_system_command(command):
-    try:
-        retcode = call(command, shell=True)
-        if retcode < 0:
-            print("Child was terminated by signal", -retcode, file=sys.stderr)
-        else:
-            print("Child returned", retcode, file=sys.stderr)
-    except OSError as e:
-        print("Execution failed:", e, file=sys.stderr)
-
-
 def register():
     # register auto-update module
     # placed this on top so the plugin degenerate to a non working version
     # this can be fixed by a new release
     addon_updater_ops.register(bl_info)
     bpy.utils.register_class(AutoUpdatePreferences)
-
-    # TODO handle permission errors
-    addon_path = str(Path(__file__).parent)
-    print("Addon path " + addon_path)
-    blender_path = str(Path(sys.executable).parent)
-    print("Blender path " + blender_path)
-    # TODO detect version, make more flexible
-    # _, dirs, _ = next(os.walk(blender_path))
-    # blender_version_dir = dirs[0]
-    blender_version_dir = "2.79"
-    blender_python_dir = os.path.join(blender_path, blender_version_dir, "python")
-    posix_pip_location = os.path.join(blender_python_dir, "bin", "pip")
-    windows_pip_location = os.path.join(blender_python_dir, "scripts", "pip3.exe")
-    if not (os.path.exists(posix_pip_location) or os.path.exists(windows_pip_location)):
-        print("Downloading pip")
-        # download get pip
-        pip_download_location = os.path.join(addon_path, "get_pip.py")
-        urllib.request.urlretrieve("https://bootstrap.pypa.io/get-pip.py",
-                                   filename=pip_download_location)
-        python_bin = os.path.join(blender_python_dir, "bin")
-        if (os.path.exists(os.path.join(python_bin, "python3.5m"))):
-            python_interpreter = os.path.join(python_bin, "python3.5m")
-        elif os.path.exists(os.path.join(python_bin, "python.exe")):
-            python_interpreter = os.path.join(python_bin, "python.exe")
-        command = r'"{}" "{}"'.format(python_interpreter, pip_download_location)
-        print("Command: " + command)
-        call_system_command(command)
-    try:
-        import scipy, pyquaternion
-    except ImportError:
-        print("Installing packets")
-        if (os.path.exists(posix_pip_location)):
-            command = r'"{}" install -r "{}"'.format(posix_pip_location, os.path.join(addon_path, "requirements.txt"))
-        elif os.path.exists(windows_pip_location):
-            command = r'"{}" install -r "{}"'.format(windows_pip_location, os.path.join(addon_path, "requirements.txt"))
-        call_system_command(command)
-    # install
+    bootstrap.install_dependencies()
     bpy.utils.register_class(LoadDataset)
     bpy.utils.register_class(AnimateObject)
     bpy.utils.register_class(InertialBlenderPanel)
@@ -202,11 +153,12 @@ def unregister():
     # TODO move to implicit unregistration (module)
     addon_updater_ops.unregister()
     bpy.utils.unregister_class(AutoUpdatePreferences)
-    bpy.utils.unregister_class(InertialBlenderPanel)
-    bpy.utils.unregister_class(AnimateObject)
+    bootstrap.uninstall_packages_from_requirements_file()
     bpy.utils.unregister_class(LoadDataset)
+    bpy.utils.unregister_class(AnimateObject)
+    bpy.utils.unregister_class(InertialBlenderPanel)
 
-# demo bare-bones preferences
+
 class AutoUpdatePreferences(bpy.types.AddonPreferences):
     bl_idname = __package__
 

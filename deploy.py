@@ -28,15 +28,18 @@ if __name__ == "__main__":
     # prepare other path strings
     addon_updater_path = os.path.join(my_path, "blender-addon-updater", "addon_updater.py")
     src_full_path = os.path.join(my_path, "src")
-    new_src = os.path.join(path, "src")
+    blender_utils_full_path = os.path.join(my_path,"blender")
     init_full_path = os.path.join(my_path, "__init__.py")
     requirements_full_path = os.path.join(my_path, "requirements.txt")
     addon_updater_ops_path = os.path.join(my_path, "my_addon_updater_ops.py")
+    new_src = os.path.join(path, "src")
+    new_blender_utils = os.path.join(path,"blender")
     addon_updater_ops_new_path = os.path.join(path, "addon_updater_ops.py")
     # TODO if dir exist remove it
     os.makedirs(path, exist_ok=True)
     # copy necessary project file to temp directory
     shutil.copytree(src_full_path, new_src)
+    shutil.copytree(blender_utils_full_path,new_blender_utils)
     shutil.copy(init_full_path, path)
     shutil.copy(addon_updater_ops_path, addon_updater_ops_new_path)
     shutil.copy(addon_updater_path, path)

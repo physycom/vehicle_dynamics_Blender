@@ -17,7 +17,8 @@ The sensors data must be in [this format (FullInertial)](https://github.com/phys
 ## Install
 
 1. Download latest .zip release from [here](https://github.com/physycom/vehicle_dynamics_Blender/releases) 
-2. Install .zip as a blender common add-on as explained also [here](https://docs.blender.org/manual/en/dev/preferences/addons.html) 
+2. Install .zip as a blender common add-on as explained also [here](https://docs.blender.org/manual/en/dev/preferences/addons.html).
+During the add-on activation / deactivation dependencies are installed/uninstalled so you could have to wait a while.
 
 ## Usage
 
