@@ -164,7 +164,8 @@ def parse_input(filepath, accepted_types=[input_type for input_type in InputType
     # use StringIO to simulate file read
     string_io = StringIO(file_content)
     # use pandas to parse tsv
-    df = pd.read_csv(string_io, sep='\t')
+    # set to not use first column as index
+    df = pd.read_csv(string_io, sep='\t',index_col=False)
     # detect file type
     input_type = detect_input_type(df, filepath)
 
