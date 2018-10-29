@@ -41,6 +41,8 @@ Once the add-on is istalled a new panel will be present in the lower section of 
 	```
 	python3 deploy.py
 	```
+	
+There may be calls to some datasets that aren't provided because of privacy reason.
 
 For additional documentation see [my bachelor thesis](https://github.com/federicoB/bachelor_thesis) on this project
 
