@@ -28,7 +28,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import axes3d, Axes3D
 
 
-def plot_vectors(vectors_list, label_list=None, title=None, tri_dim=True):
+def plot_vectors(vectors_list, label_list=None, title=None, tri_dim=True, horiz=None):
     """ Plot 3xn numpy array in 2d and 3d
 
     plt.show() blocking call must be called to show all plot created whit this function
@@ -37,6 +37,7 @@ def plot_vectors(vectors_list, label_list=None, title=None, tri_dim=True):
     :param label_list: optional list of custom 3d plot label (matching 1-1 with vectors-list)
     :param title: string figure title
     :param tri_dim: boolean toggle 3d plot
+    :param horiz: units for x axis in 2d plot
     :return figure
     """
 
@@ -54,7 +55,10 @@ def plot_vectors(vectors_list, label_list=None, title=None, tri_dim=True):
     for vectors, label in zip(vectors_list, label_list):
         # if vector is multidimensional
         if (vectors.ndim > 1):
-            [axes_2d.plot(ri, label=axis_labels[i] + " " + label) for i, ri in enumerate(vectors)]
+            if (horiz is not None):
+                [axes_2d.plot(horiz, ri, label=axis_labels[i] + " " + label) for i, ri in enumerate(vectors)]
+            else:
+                [axes_2d.plot(ri, label=axis_labels[i] + " " + label) for i, ri in enumerate(vectors)]
             if (tri_dim):
                 axes_3d.plot(*vectors, label=label)
                 axes_3d.set_xlabel('x')
