@@ -34,7 +34,7 @@ from src.input_manager import parse_input, InputType
 from src.integrate import cumulative_integrate
 from src.rotations import rotate_accelerations, align_to_world
 
-def get_trajectory_from_path(path):
+def get_trajectory_from_path(path,use_gps=True):
     """
     parse input file from path, clean data and integrate positions
 
@@ -44,64 +44,110 @@ def get_trajectory_from_path(path):
 
     window_size = 20
 
-    # currently default format is unmodified fullinertial but other formats are / will be supported
-    times, coordinates, altitudes, gps_speed, heading, accelerations, angular_velocities = parse_input(path, [
-        InputType.UNMOD_FULLINERTIAL])
+    if (use_gps):
+        print("using GPS")
+        # currently default format is unmodified fullinertial but other formats are / will be supported
+        times, coordinates, altitudes, gps_speed, heading, accelerations, angular_velocities = parse_input(path, [
+            InputType.UNMOD_FULLINERTIAL])
 
-    converts_measurement_units(accelerations, angular_velocities, gps_speed, coordinates, heading)
+        converts_measurement_units(accelerations, angular_velocities, gps_speed, coordinates, heading)
 
-    # get positions from GNSS data
-    gnss_positions, headings_2 = get_positions(coordinates, altitudes)
+        # get positions from GNSS data
+        gnss_positions, headings_2 = get_positions(coordinates, altitudes)
 
-    # reduce accelerations disturbance
-    times, accelerations = reduce_disturbance(times, accelerations, window_size)
-    # reduce angular velocities disturbance
-    _, angular_velocities = reduce_disturbance(times, angular_velocities, window_size)
-    # truncate other array to match length of acc, thetas, times array
-    gnss_positions = gnss_positions[:, round(window_size / 2):-round(window_size / 2)]
+        # reduce accelerations disturbance
+        times, accelerations = reduce_disturbance(times, accelerations, window_size)
+        # reduce angular velocities disturbance
+        _, angular_velocities = reduce_disturbance(times, angular_velocities, window_size)
+        # truncate other array to match length of acc, thetas, times array
+        gnss_positions = gnss_positions[:, round(window_size / 2):-round(window_size / 2)]
 
-    # with "final" times now get velocities and
-    real_velocities = get_velocities(times, gnss_positions)
-    # scalar speed from GNSS position (better than from dataset because avoids Kalmar filter)
-    real_speeds = np.linalg.norm(real_velocities, axis=0)
+        # with "final" times now get velocities and
+        real_velocities = get_velocities(times, gnss_positions)
+        # scalar speed from GNSS position (better than from dataset because avoids Kalmar filter)
+        real_speeds = np.linalg.norm(real_velocities, axis=0)
 
-    # get time windows where vehicle is stationary
-    stationary_times = get_stationary_times(gps_speed)
+        # get time windows where vehicle is stationary
+        stationary_times = get_stationary_times(gps_speed)
 
-    # clear gyroscope drift
-    angular_velocities = clear_gyro_drift(angular_velocities, stationary_times)
-    # set times start to 0
-    normalize_timestamp(times)
+        # clear gyroscope drift
+        angular_velocities = clear_gyro_drift(angular_velocities, stationary_times)
+        # set times start to 0
+        normalize_timestamp(times)
 
-    # correct z-axis alignment
-    accelerations, angular_velocities = correct_z_orientation(accelerations, angular_velocities, stationary_times)
+        # correct z-axis alignment
+        accelerations, angular_velocities = correct_z_orientation(accelerations, angular_velocities, stationary_times)
 
-    # remove g
-    accelerations[2] -= accelerations[2, stationary_times[0][0]:stationary_times[0][-1]].mean()
+        # remove g
+        accelerations[2] -= accelerations[2, stationary_times[0][0]:stationary_times[0][-1]].mean()
 
-    # correct alignment in xy plane
-    #accelerations = correct_xy_orientation(accelerations, angular_velocities)
+        # correct alignment in xy plane
+        #accelerations = correct_xy_orientation(accelerations, angular_velocities)
 
-    motion_time = get_first_motion_time(stationary_times,gnss_positions)
-    initial_angular_position = get_initial_angular_position(gnss_positions,motion_time)
+        motion_time = get_first_motion_time(stationary_times,gnss_positions)
+        initial_angular_position = get_initial_angular_position(gnss_positions,motion_time)
 
-    # convert to laboratory frame of reference
-    accelerations, angular_positions = rotate_accelerations(times, accelerations, angular_velocities, heading, initial_angular_position)
+        # convert to laboratory frame of reference
+        accelerations, angular_positions = rotate_accelerations(times, accelerations, angular_velocities, heading, initial_angular_position)
 
-    # rotate to align y to north, x to east
-    accelerations = align_to_world(gnss_positions, accelerations, motion_time)
-    # angular position doesn't need to be aligned to world if starting angular position is already aligned and following
-    # angular positions are calculated from that
+        # rotate to align y to north, x to east
+        accelerations = align_to_world(gnss_positions, accelerations, motion_time)
+        # angular position doesn't need to be aligned to world if starting angular position is already aligned and following
+        # angular positions are calculated from that
 
-    initial_speed = np.array([[gps_speed[0]], [0], [0]])
-    # integrate acceleration with gss velocities correction
-    correct_velocities = cumulative_integrate(times, accelerations, initial_speed, adjust_data=real_velocities,
-                                              adjust_frequency=1)
+        initial_speed = np.array([[gps_speed[0]], [0], [0]])
+        # integrate acceleration with gss velocities correction
+        correct_velocities = cumulative_integrate(times, accelerations, initial_speed, adjust_data=real_velocities, adjust_frequency=1)
 
-    if sign_inversion_is_necessary(correct_velocities):
-        accelerations *= -1
-        correct_velocities *= -1
+        if sign_inversion_is_necessary(correct_velocities):
+            accelerations *= -1
+            correct_velocities *= -1
 
-    correct_position = cumulative_integrate(times, correct_velocities, adjust_data=gnss_positions, adjust_frequency=1)
+        correct_position = cumulative_integrate(times, correct_velocities, adjust_data=real_velocities, adjust_frequency=1)
 
-    return correct_position, times, angular_positions
+        return correct_position, times, angular_positions
+
+    else:
+        print("not using GPS")
+        # currently default format is unmodified fullinertial but other formats are / will be supported
+        times, _, _, gps_speed, _, accelerations, angular_velocities = parse_input(path, [
+            InputType.UNMOD_FULLINERTIAL])
+
+        converts_measurement_units(accelerations, angular_velocities, gps_speed)
+
+        # reduce accelerations disturbance
+        times, accelerations = reduce_disturbance(times, accelerations, window_size)
+        # reduce angular velocities disturbance
+        _, angular_velocities = reduce_disturbance(times, angular_velocities, window_size)
+
+        # get time windows where vehicle is stationary
+        stationary_times = get_stationary_times(gps_speed)
+
+        # clear gyroscope drift
+        angular_velocities = clear_gyro_drift(angular_velocities, stationary_times)
+        # set times start to 0
+        normalize_timestamp(times)
+
+        # correct z-axis alignment
+        accelerations, angular_velocities = correct_z_orientation(accelerations, angular_velocities, stationary_times)
+
+        # remove g
+        accelerations[2] -= accelerations[2, stationary_times[0][0]:stationary_times[0][-1]].mean()
+
+        # correct alignment in xy plane
+        # accelerations = correct_xy_orientation(accelerations, angular_velocities)
+
+        # convert to laboratory frame of reference
+        accelerations, angular_positions = rotate_accelerations(times, accelerations, angular_velocities)
+
+        initial_speed = np.array([[gps_speed[0]], [0], [0]])
+        # integrate acceleration with gss velocities correction
+        correct_velocities = cumulative_integrate(times, accelerations, initial_speed)
+
+        if sign_inversion_is_necessary(correct_velocities):
+            accelerations *= -1
+            correct_velocities *= -1
+
+        correct_position = cumulative_integrate(times, correct_velocities)
+
+        return correct_position, times, angular_positions

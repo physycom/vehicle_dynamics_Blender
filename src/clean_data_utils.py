@@ -32,6 +32,7 @@ Credits: Federico Bertani, Stefano Sinigardi, Alessandro Fabbri, Nico Curti
 """
 
 import numpy as np
+import math
 from quaternion import quaternion
 from scipy import constants
 from scipy import cross, dot, arccos, arctan2, cos, sin, pi
@@ -188,8 +189,8 @@ def reduce_disturbance(times, vectors, window_dimension):
     df = df.rolling(window=window_dimension, center=True).mean()
     # now there ara 0:windows_dimension nan rows at the beginning
     # drop these rows
-    new_low_range = round(window_dimension / 2)
-    new_upper_range = round(df.shape[0] - window_dimension / 2)
+    new_low_range = math.floor(window_dimension / 2)
+    new_upper_range = math.floor(df.shape[0] - window_dimension / 2)
     # TODO change drop offset
     new_vector = df[new_low_range:new_upper_range].values.T
     new_times = times[new_low_range:new_upper_range]

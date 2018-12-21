@@ -16,7 +16,9 @@ sys.path.append(str(Path(__file__).parent))
 from . import addon_updater_ops
 from blender import bootstrap
 
-from bpy.props import StringProperty
+from bpy.props import StringProperty, BoolProperty
+
+
 
 bpy.types.Scene.datasetPath = StringProperty(
     name="Dataset path",
@@ -24,6 +26,11 @@ bpy.types.Scene.datasetPath = StringProperty(
     default="",
     maxlen=2056,
 )
+
+bpy.types.Scene.use_gps = BoolProperty(
+    name="Use GPS Data",
+    description="Use GPS data",
+    default = True)
 
 
 class InertialBlenderPanel(bpy.types.Panel):
@@ -48,6 +55,7 @@ class InertialBlenderPanel(bpy.types.Panel):
         col = layout.column()
         col.operator("physycom.load_dataset")
         col.prop(context.scene, "datasetPath")
+        col.prop(context.scene, "use_gps", text="Use GPS")
         col.operator("physycom.animate_object")
 
         if addon_updater_ops.updater.update_ready == True:
@@ -95,7 +103,7 @@ class AnimateObject(bpy.types.Operator):
         # get current selected object in scene
         obj = scene.objects.active
         # TODO check object is not None
-        positions, times, angular_positions = get_trajectory_from_path(scene.datasetPath)
+        positions, times, angular_positions = get_trajectory_from_path(scene.datasetPath,scene.use_gps)
         # set animation lenght
         bpy.context.scene.frame_end = times[-1] * fps
         # create animation data
@@ -134,7 +142,6 @@ class AnimateObject(bpy.types.Operator):
         # attach to scene and validate context
         scene.objects.link(curveOB)
         return {'FINISHED'}
-
 
 def register():
     # register auto-update module
