@@ -107,9 +107,10 @@ if __name__ == '__main__':
     print("Execution time: %s seconds" % (time.time() - start_time))
 
     # plotting
+    plot_vectors([accelerations], ['$m/s^2$'], tri_dim=False, horiz=times)
+    plot_vectors([correct_velocities], ['m/s'], tri_dim=False, horiz=times)
 
-    figure = plot_vectors([correct_position, gnss_positions], ['x integrated positions', 'x GNSS positions'])
-
+    figure = plot_vectors([correct_position], ['$m$'])
     lim3d = figure.axes[1].get_xbound()
     figure.axes[1].set_zbound(lim3d)
     figure.axes[1].set_ybound(lim3d)

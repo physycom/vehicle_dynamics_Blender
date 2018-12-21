@@ -6,7 +6,7 @@ from quaternion import from_rotation_vector
 from src.integrate import simps_integrate_delta
 
 
-def rotate_accelerations(times, accelerations, angular_velocities, headings,
+def rotate_accelerations(times, accelerations, angular_velocities, headings=None,
                          initial_angular_position=np.array([0, 0, 0])):
     """
     Integrate angular velocities and rotate acceleration vector accordingly.

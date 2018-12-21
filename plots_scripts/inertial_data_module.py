@@ -65,7 +65,7 @@ if __name__ == '__main__':
 
     real_velocities_module = norm(real_velocities, axis=0)
 
-    stationary_times = get_stationary_times(real_velocities_module)
+    stationary_times = get_stationary_times(gps_speed)
     # reduce accelerations disturbance
     times, accelerations = reduce_disturbance(times, accelerations, window_size)
     # reduce angular velocities disturbance
