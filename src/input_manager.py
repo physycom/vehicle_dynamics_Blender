@@ -119,8 +119,15 @@ def get_vectors(df, input_type):
         from scipy.interpolate import interp1d
         gnss_data = clean_gnss_data[['lat', 'lon', 'alt', 'heading', 'speed']].values
         gnss_data_timestamp = clean_gnss_data['timestamp'].values
-        coord_func = interp1d(x=gnss_data_timestamp, y=gnss_data.T,kind='quadratic',
+        try:
+            coord_func = interp1d(x=gnss_data_timestamp, y=gnss_data.T,kind='quadratic',
                               fill_value='extrapolate', assume_sorted=True)
+        except (ValueError):
+            print("raised exception on interpolation, this can be caused by records with same timestamp")
+            # if an exception is raised it can be caused by x vector not being sorted, so sort it
+            # this is a rare case and is sign of a bad input dataset
+            coord_func = interp1d(x=gnss_data_timestamp, y=gnss_data.T, kind='quadratic',
+                                  fill_value='extrapolate', assume_sorted=False)
         # filter inertial records from dataframe
         df = df.dropna(subset=['ax'])
         accelerations = df[['ax', 'ay', 'az']].values.T
