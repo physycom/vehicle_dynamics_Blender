@@ -160,7 +160,8 @@ def unregister():
     # TODO move to implicit unregistration (module)
     addon_updater_ops.unregister()
     bpy.utils.unregister_class(AutoUpdatePreferences)
-    bootstrap.uninstall_packages_from_requirements_file()
+    # commented out because it was a boggy solution and numpy is lightweight
+    #bootstrap.uninstall_packages_from_requirements_file()
     bpy.utils.unregister_class(LoadDataset)
     bpy.utils.unregister_class(AnimateObject)
     bpy.utils.unregister_class(InertialBlenderPanel)
