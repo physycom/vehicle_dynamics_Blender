@@ -116,29 +116,26 @@ def get_vectors(df, input_type):
         # filter gnss records
         clean_gnss_data = df.dropna(subset=['lat'])
         # interpolate coordinates
-        from scipy.interpolate import interp1d
+        from numpy import interp
         gnss_data = clean_gnss_data[['lat', 'lon', 'alt', 'heading', 'speed']].values
         gnss_data_timestamp = clean_gnss_data['timestamp'].values
-        try:
-            coord_func = interp1d(x=gnss_data_timestamp, y=gnss_data.T,kind='quadratic',
-                              fill_value='extrapolate', assume_sorted=True)
-        except (ValueError):
-            print("raised exception on interpolation, this can be caused by records with same timestamp")
-            # if an exception is raised it can be caused by x vector not being sorted, so sort it
-            # this is a rare case and is sign of a bad input dataset
-            coord_func = interp1d(x=gnss_data_timestamp, y=gnss_data.T, kind='quadratic',
-                                  fill_value='extrapolate', assume_sorted=False)
         # filter inertial records from dataframe
         df = df.dropna(subset=['ax'])
         accelerations = df[['ax', 'ay', 'az']].values.T
         angular_velocities = df[['gx', 'gy', 'gz']].values.T
         times = df['timestamp'].values.T
-        # create coordinates vectors on inertial timestamp
-        coordinatesX,coordinatesY,altitudes,heading,gps_speed = zip(*[coord_func(time) for time in times])
-        coordinates = np.array([x for x in zip(coordinatesX,coordinatesY)]).T
-        altitudes = np.array(altitudes).T
-        heading = np.array(heading).T
-        gps_speed = np.array(gps_speed).T
+        try:
+            coordinatesX = interp(times, gnss_data_timestamp, gnss_data[:,0])
+            coordinatesY = interp(times,gnss_data_timestamp,gnss_data[:,1])
+            coordinates = np.array([x for x in zip(coordinatesX, coordinatesY)]).T
+            altitudes = interp(times,gnss_data_timestamp,gnss_data[:,2])
+            heading = interp(times,gnss_data_timestamp,gnss_data[:,3])
+            gps_speed = interp(times,gnss_data_timestamp,gnss_data[:,4])
+        except (ValueError):
+            print("raised exception on interpolation, this can be caused by records with same timestamp")
+            # if an exception is raised it can be caused by x vector not being sorted, so sort it
+            # this is a rare case and is sign of a bad input dataset
+            # TODO handle case
         # correct heading
         heading = 270 - heading
         return times, coordinates, altitudes, gps_speed, heading, accelerations, angular_velocities
