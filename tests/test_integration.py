@@ -28,6 +28,7 @@ import numpy as np
 from SpringTrajectoryGenerator import SpringTrajectoryGenerator
 from CircularTrajectoryGenerator import CircularTrajectoryGenerator
 from src.integrate import cumulative_integrate, quad_integrate, trapz_integrate
+from constants import pi
 from src import rotate_accelerations
 
 
@@ -76,10 +77,9 @@ class IntegrationTest(TestCase):
         """ Simple integration methods test with trigonometry functions"""
 
         # TODO remove when trajectory will be generalized
-        from scipy import sin, cos
         times = np.arange(start=0, stop=100, step=1e-2)
-        sinus = np.array([sin(x) for x in times])
-        cosines = np.array([cos(x) for x in times])
+        sinus = np.array([np.sin(x) for x in times])
+        cosines = np.array([np.cos(x) for x in times])
         vector = np.vstack((sinus, cosines, -sinus))
         # for each integration method
         for method in [quad_integrate, trapz_integrate, cumulative_integrate]:
@@ -98,7 +98,6 @@ class IntegrationTest(TestCase):
 class RotationTest(TestCase):
 
     def test_rotation(self):
-        from scipy.constants import pi
         # 90°/s around z
         angular_velocity = np.array([
             [0, 0, 0],

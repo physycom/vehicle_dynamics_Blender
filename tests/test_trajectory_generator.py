@@ -35,18 +35,14 @@ class TrajectoryGeneratorTests(TestCase):
         """Calculate difference between numerically derived and analytical derived"""
         # this is only for personal interest and is not so much related to project
         # define a threshold
-        arbitrary_acceptable_threshold = 0.001
+        arbitrary_acceptable_threshold = 0.1
         # generate trajectory object
         trajectory_generator = SpringTrajectoryGenerator()
         # get numerical accelerations
-        _, accelerations_num = trajectory_generator.get_numerical_derived_accelerations()
+        accelerations_num = trajectory_generator.get_numerical_derived_accelerations()
         # get analytical accelerations
         accelerations_analytical = trajectory_generator.get_analytical_accelerations()
         # compute the error as the absolute difference
-        # symbolic accelerations are sliced see get_numerical_derived_accelerations() doc
-        times = trajectory_generator.times
-        accelerations_analytical = accelerations_analytical[:,
-                                   np.logical_and(times > 1, times < trajectory_generator.max_time - 1)]
         error = abs(accelerations_analytical - accelerations_num)
         print("median error numerical-analytical derivative {} meters".format(error.mean()))
         self.assertTrue(abs(error.mean()) < arbitrary_acceptable_threshold)

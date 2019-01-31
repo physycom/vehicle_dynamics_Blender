@@ -28,9 +28,7 @@ Credits: Federico Bertani, Stefano Sinigardi, Alessandro Fabbri, Nico Curti
 
 import numpy as np
 from quaternion import quaternion
-from scipy import sin, cos
-from scipy.interpolate import interp1d
-from scipy.misc import derivative
+from numpy import sin, cos
 
 from BaseTrajectoryGenerator import BaseTrajectoryGenerator
 from plots_scripts.plot_utils import plot_vectors
@@ -120,17 +118,9 @@ class SpringTrajectoryGenerator(BaseTrajectoryGenerator):
         return velocities
 
     def get_numerical_derived_accelerations(self):
-        """ Returns new array of times and a 3xn numpy array of accelerations derived numerically from trajectory
-
-        WARNING: the times will be cut because of the derivation algorithms. New times are returned by the function.
-        Those accelerations are susceptible to errors.
-        """
-        # interpolate trajectory to python function because scipy derivative method require it
-        trajectory_function = interp1d(x=self.times, y=self.trajectory, copy=False, assume_sorted=True)
-        # removes some points to left and right margins because derivation is undefined there
-        times = np.array(list(filter(lambda x: 1 < x < self.max_time-1, self.times)))
+        """ Returns new array of times and a 3xn numpy array of accelerations derived numerically from trajectory"""
         # calculate numerical 2° order derivative and return it
-        return times, np.array([derivative(func=trajectory_function, x0=time, n=2) for time in times]).T
+        return np.gradient(np.gradient(self.trajectory,axis=1),axis=1)
 
     def get_start_velocity(self):
         """return 3x1 numpy array describing motion initial position"""

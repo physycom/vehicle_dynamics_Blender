@@ -10,6 +10,5 @@ pandas==0.22.0
 pyparsing==2.2.0
 python-dateutil==2.7.0
 pytz==2018.3
-scipy==1.0.0
 six==1.11.0
 tornado==5.0

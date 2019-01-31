@@ -24,7 +24,7 @@ Credits: Federico Bertani, Stefano Sinigardi, Alessandro Fabbri, Nico Curti
 """
 
 from math import cos
-from scipy import arctan2
+
 
 import numpy as np
 
@@ -55,7 +55,7 @@ def get_positions(coordinates, altitudes):
         # use same formula but with earth horizontal radius moved to latitude
         delta_lon = earth_radius * cos(lat) * (lon - current[1])
         delta_alt = alt - current[2]
-        headings[i] = arctan2(delta_lat, delta_lon)
+        headings[i] = np.arctan2(delta_lat, delta_lon)
         # update current
         current[0] = lat
         current[1] = lon

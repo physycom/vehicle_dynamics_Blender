@@ -24,8 +24,8 @@ Credits: Federico Bertani, Stefano Sinigardi, Alessandro Fabbri, Nico Curti
 """
 
 import unittest
-import pandas as pd
 import numpy as np
+from constants import pi, g, kmh
 
 from src.clean_data_utils import reduce_disturbance, normalize_timestamp, converts_measurement_units, \
     correct_z_orientation, clear_gyro_drift, get_stationary_times, get_xy_bad_align_count, correct_xy_orientation
@@ -66,12 +66,10 @@ class ClearDataUtilsTest(unittest.TestCase):
         angular_velocities = np.array([[180.0], [180.0], [180.0]])
         gps_speed = np.array([[1.0]])
         converts_measurement_units(accelerations, angular_velocities, gps_speed)
-        # import scipy constants
-        from scipy.constants import g, pi, kmh
         # check measurement unit conversion
-        self.assertTrue(all(accelerations == g))
-        self.assertTrue(all(angular_velocities == pi))
-        self.assertTrue(all(gps_speed == kmh))
+        np.testing.assert_array_almost_equal(accelerations, g)
+        np.testing.assert_array_almost_equal(angular_velocities, pi)
+        np.testing.assert_array_almost_equal(gps_speed, kmh)
 
     def test_normalize_timestamp(self):
         # check that the first timestamp if not zero

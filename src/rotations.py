@@ -47,7 +47,7 @@ def align_to_world(gnss_position, vectors, motion_time):
     :return: 2 numpy array: 3xn numpy array of rotated accelerations and 4xn angular positions as quaternions
     """
 
-    from scipy import sin, cos, arctan2
+    from numpy import sin, cos, arctan2
     # get angle of rotation
     angle_gnss = np.arctan2(gnss_position[1, motion_time], gnss_position[0, motion_time])
     # TODO pay attention using acceleration

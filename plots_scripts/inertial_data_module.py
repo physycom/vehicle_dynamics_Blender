@@ -27,7 +27,6 @@ Credits: Federico Bertani, Stefano Sinigardi, Alessandro Fabbri, Nico Curti
 
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.linalg import norm
 
 from src.clean_data_utils import converts_measurement_units, reduce_disturbance, \
     clear_gyro_drift, correct_z_orientation, normalize_timestamp, \
@@ -54,7 +53,7 @@ if __name__ == '__main__':
 
     # GNSS data handling
     gnss_positions, headings = get_positions(coordinates, altitudes)
-    gnss_distance = norm(np.array([gnss_positions[:, i] - gnss_positions[:, i - 1]
+    gnss_distance = np.linalg.norm(np.array([gnss_positions[:, i] - gnss_positions[:, i - 1]
                                    for i, x in enumerate(gnss_positions[:, 1:].T, 1)]), axis=1).cumsum()
     # insert initial distance
     gnss_distance = np.insert(gnss_distance, 0, 0)
@@ -63,7 +62,7 @@ if __name__ == '__main__':
     real_velocities = get_velocities(times, gnss_positions)
     real_acc = get_accelerations(times, real_velocities)
 
-    real_velocities_module = norm(real_velocities, axis=0)
+    real_velocities_module = np.linalg.norm(real_velocities, axis=0)
 
     stationary_times = get_stationary_times(gps_speed)
     # reduce accelerations disturbance
@@ -82,10 +81,10 @@ if __name__ == '__main__':
     # remove g
     accelerations[2] -= accelerations[2, stationary_times[0][0]:stationary_times[0][-1]].mean()
 
-    accelerations_module = norm(accelerations, axis=0)
+    accelerations_module = np.linalg.norm(accelerations, axis=0)
     accelerations_module = np.reshape(accelerations_module, (1, len(accelerations_module)))
 
-    real_acc_module = norm(real_acc, axis=0)
+    real_acc_module = np.linalg.norm(real_acc, axis=0)
 
     real_velocities_module = np.reshape(real_velocities_module, (1, len(real_velocities_module)))
 

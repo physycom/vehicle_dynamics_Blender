@@ -34,10 +34,7 @@ Credits: Federico Bertani, Stefano Sinigardi, Alessandro Fabbri, Nico Curti
 import numpy as np
 import math
 from quaternion import quaternion
-from scipy import constants
-from scipy import cross, dot, arccos, arctan2, cos, sin, pi
-from scipy.linalg import norm
-
+from constants import g, kmh, degree_to_radians, pi
 
 def parse_input(df):
     """ Transform single dataframe to multiple numpy array each representing different physic quantity
@@ -112,17 +109,17 @@ def converts_measurement_units(accelerations, angular_velocities, gps_speed=None
     :param angular_velocities: 3xn array of angular velocities in degrees/s
     :param coordinates: optional 2xn array of coordinates in geographic coordinate system
     """
-    accelerations *= constants.g
+    accelerations *= g
     if coordinates is not None:
         # multiply to degree to radians constant
-        coordinates *= constants.degree
+        coordinates *= degree_to_radians
     # multiply to degree to radians constant
-    angular_velocities *= constants.degree
+    angular_velocities *= degree_to_radians
     if gps_speed is not None:
         # multiply to km/h -> m/s constant
-        gps_speed *= constants.kmh
+        gps_speed *= kmh
     if heading is not None:
-        heading *= constants.degree
+        heading *= degree_to_radians
 
 
 def normalize_timestamp(times):
@@ -280,15 +277,15 @@ def correct_xy_orientation(accelerations, angular_velocities):
             # get first vector
             vec = bad_align_proof.mean(axis=1)
             # get angle and negate it to remove rotation
-            angle = -arctan2(vec[1], vec[0])
+            angle = -np.arctan2(vec[1], vec[0])
             if (vec[1] > 0 and vec[0] < 0):
                 # TODO check if this case is necessary (is out of coverage)
                 angle = pi + angle
             elif (vec[1] < 0 and vec[0] < 0):
                 angle = -(pi + angle)
             # use new var instead of inplace so when we rotate y we don't use the rotated x but the old one
-            new_accelerations[0] = cos(angle) * accelerations[0] - sin(angle) * accelerations[1]
-            new_accelerations[1] = sin(angle) * accelerations[0] + cos(angle) * accelerations[1]
+            new_accelerations[0] = np.cos(angle) * accelerations[0] - np.sin(angle) * accelerations[1]
+            new_accelerations[1] = np.sin(angle) * accelerations[0] + np.cos(angle) * accelerations[1]
         # now set new arrays
         return get_xy_bad_align_count(new_accelerations, angular_velocities), new_accelerations
 
@@ -322,12 +319,12 @@ def correct_z_orientation(accelerations, angular_velocities, stationary_times):
     g = np.mean(np.concatenate(
         [accelerations[:,stationary_time[0]:stationary_time[1]] for stationary_time in stationary_times],axis=1),axis=1)
     def align_from_g_vector(accelerations, angular_velocities, g):
-        g_norm = norm(g)
-        u = cross(g, (0, 0, 1))
+        g_norm = np.linalg.norm(g)
+        u = np.cross(g, (0, 0, 1))
         # rotation axis
-        u_unit = u / norm(u)
+        u_unit = u / np.linalg.norm(u)
         # rotate angle
-        theta = arccos(dot(g, (0, 0, 1)) / g_norm)
+        theta = np.arccos(np.dot(g, (0, 0, 1)) / g_norm)
         print("rotating vectors of "+str(np.rad2deg(theta))+" degrees align to z")
         rotator = np.exp(quaternion(*(theta * u_unit)) / 2)
         rotated_accelerations = np.array(
@@ -344,7 +341,7 @@ def correct_z_orientation(accelerations, angular_velocities, stationary_times):
     for stationary_time in stationary_times[1:]:
         # calculate bad align angle
         g = accelerations[:, stationary_time[0]:stationary_time[1]].mean(axis=1)
-        bad_align_angle = arccos(dot(g, (0, 0, 1)) / norm(g))
+        bad_align_angle = np.arccos(np.dot(g, (0, 0, 1)) / np.linalg.norm(g))
         # if the bad align angle is greater than 2 degrees
         if bad_align_angle > np.deg2rad(10):
             # print a warning
