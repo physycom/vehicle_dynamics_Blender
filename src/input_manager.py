@@ -113,32 +113,51 @@ def get_vectors(df, input_type):
     elif input_type == InputType.UNMOD_FULLINERTIAL:
         # TODO use DataFrame.interpolate
         # the input has gnss and inertial records mixed
-        # filter gnss records
+        # filter to get records with gnss data
         clean_gnss_data = df.dropna(subset=['lat'])
         # interpolate coordinates
-        from numpy import interp
+        # get numpy array
         gnss_data = clean_gnss_data[['lat', 'lon', 'alt', 'heading', 'speed']].values
+        # get numpy array of timestamp from gnss data
         gnss_data_timestamp = clean_gnss_data['timestamp'].values
-        # filter inertial records from dataframe
+        # get from original dataframe records with inertial data
         df = df.dropna(subset=['ax'])
+        # get accelerations array
         accelerations = df[['ax', 'ay', 'az']].values.T
+        # get angular velocities array
         angular_velocities = df[['gx', 'gy', 'gz']].values.T
+        # get timestamp of records with inertial data (more frequent than gnss)
         times = df['timestamp'].values.T
+        # get gnss data at inertial frequency by interpolation
         try:
-            coordinatesX = interp(times, gnss_data_timestamp, gnss_data[:,0])
-            coordinatesY = interp(times,gnss_data_timestamp,gnss_data[:,1])
-            coordinates = np.array([x for x in zip(coordinatesX, coordinatesY)]).T
-            altitudes = interp(times,gnss_data_timestamp,gnss_data[:,2])
-            heading = interp(times,gnss_data_timestamp,gnss_data[:,3])
-            gps_speed = interp(times,gnss_data_timestamp,gnss_data[:,4])
+            altitudes, coordinates, gps_speed, heading = interpolate_gnss_data(gnss_data, gnss_data_timestamp, times)
         except (ValueError):
             print("raised exception on interpolation, this can be caused by records with same timestamp")
             # if an exception is raised it can be caused by x vector not being sorted, so sort it
             # this is a rare case and is sign of a bad input dataset
-            # TODO handle case
+            gnss_data_timestamp = np.sort(gnss_data_timestamp)
+            #retry
+            try:
+                altitudes, coordinates, gps_speed, heading = interpolate_gnss_data(gnss_data, gnss_data_timestamp, times)
+            except (ValueError):
+                print("Possibile presence of records with same timestamp")
+                # rare case
+                # TODO handle case removing duplicate timestamp record
+                exit()
         # correct heading
         heading = 270 - heading
         return times, coordinates, altitudes, gps_speed, heading, accelerations, angular_velocities
+
+
+def interpolate_gnss_data(gnss_data, gnss_data_timestamp, times):
+    coordinatesX = np.interp(times, gnss_data_timestamp, gnss_data[:, 0])
+    coordinatesY = np.interp(times, gnss_data_timestamp, gnss_data[:, 1])
+    # create single array from x e y coordinates
+    coordinates = np.array([x for x in zip(coordinatesX, coordinatesY)]).T
+    altitudes = np.interp(times, gnss_data_timestamp, gnss_data[:, 2])
+    heading = np.interp(times, gnss_data_timestamp, gnss_data[:, 3])
+    gps_speed = np.interp(times, gnss_data_timestamp, gnss_data[:, 4])
+    return altitudes, coordinates, gps_speed, heading
 
 
 def parse_input(filepath, accepted_types=[input_type for input_type in InputType], slice_start=None, slice_end=None):
