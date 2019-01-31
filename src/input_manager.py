@@ -27,7 +27,6 @@ from enum import Enum, unique
 from io import StringIO
 
 import numpy as np
-import pandas as pd
 
 
 @unique
@@ -42,10 +41,10 @@ class InputType(Enum):
     UNRECOGNIZED = 8
 
 
-def detect_input_type(df, filepath):
+def detect_input_type(array, filepath):
     """
 
-    :param df:
+    :param array:
     :param filepath:
     :return:
     """
@@ -68,66 +67,68 @@ def detect_input_type(df, filepath):
         filetype = InputType.INERTIAL
     # if no match are found try with column count
     else:
-        column_count = df.shape[1]
+        column_count = array.shape[1]
         if column_count == 4:
             # TODO acc or gyr
             filetype = InputType.ACCELERATION
         elif column_count == 10:
-            if df.isnull().values.any():
+            if np.any(np.isnan(array)):
                 filetype = InputType.UNMOD_INERTIAL
             else:
                 filetype = InputType.INERTIAL
         elif column_count == 14:
-            if df.isnull().values.any():
+            if np.any(np.isnan(array)):
                 filetype = InputType.UNMOD_FULLINERTIAL
             else:
                 filetype = InputType.FULLINERTIAL
     return filetype
 
 
-def get_vectors(df, input_type):
+def get_vectors(array, input_type):
     """
     Get various numpy vectors based from dataframe columns based on input type
 
-    :param df: pandas dataframe
+    :param array: pandas dataframe
     :param input_type: InputType enum
     :return:
         times, gps_speed, accelerations, angular_velocities if input is inertial \n
         times, coordinates, altitudes, gps_speed, heading, accelerations, angular_velocities if input is fullinertial
     """
     if input_type == InputType.INERTIAL or input_type == InputType.UNMOD_INERTIAL:
-        accelerations = df[['ax', 'ay', 'az']].values.T
-        angular_velocities = df[['gx', 'gy', 'gz']].values.T
-        times = df['timestamp'].values.T
-        gps_speed = df['speed'].values.T
+        # ax ay az
+        accelerations = array[:,2:5].T
+        # gx gy gz
+        angular_velocities = array[:,5:8].T
+        times = array[:,0]
+        gps_speed = array[:,1].T
         return times, gps_speed, accelerations, angular_velocities
     elif input_type == InputType.FULLINERTIAL:
-        coordinates = df[['lat', 'lon']].values.T
-        altitudes = df['alt'].values.T
-        accelerations = df[['ax', 'ay', 'az']].values.T
-        angular_velocities = df[['gx', 'gy', 'gz']].values.T
-        times = df['timestamp'].values.T
-        gps_speed = df['speed'].values.T
-        heading = df['heading'].values.T
+        coordinates = array[:,1:3].T
+        altitudes = array[:,3].T
+        accelerations = array[:,6:9].T
+        angular_velocities = array[:,9:12].T
+        times = array[:,0].T
+        gps_speed = array[:,5].T
+        heading = array[:,4].T
         return times, coordinates, altitudes, gps_speed, heading, accelerations, angular_velocities
     elif input_type == InputType.UNMOD_FULLINERTIAL:
         # TODO use DataFrame.interpolate
         # the input has gnss and inertial records mixed
         # filter to get records with gnss data
-        clean_gnss_data = df.dropna(subset=['lat'])
+        clean_gnss_data = array[~np.isnan(array[:,1])]
         # interpolate coordinates
         # get numpy array
-        gnss_data = clean_gnss_data[['lat', 'lon', 'alt', 'heading', 'speed']].values
+        gnss_data = clean_gnss_data[:,1:6]
         # get numpy array of timestamp from gnss data
-        gnss_data_timestamp = clean_gnss_data['timestamp'].values
+        gnss_data_timestamp = clean_gnss_data[:,0]
         # get from original dataframe records with inertial data
-        df = df.dropna(subset=['ax'])
+        inertial_array = array[~np.isnan(array[:,6])]
         # get accelerations array
-        accelerations = df[['ax', 'ay', 'az']].values.T
+        accelerations = inertial_array[:,6:9].T
         # get angular velocities array
-        angular_velocities = df[['gx', 'gy', 'gz']].values.T
+        angular_velocities = inertial_array[:,9:12].T
         # get timestamp of records with inertial data (more frequent than gnss)
-        times = df['timestamp'].values.T
+        times = inertial_array[:,0]
         # get gnss data at inertial frequency by interpolation
         try:
             altitudes, coordinates, gps_speed, heading = interpolate_gnss_data(gnss_data, gnss_data_timestamp, times)
@@ -188,20 +189,21 @@ def parse_input(filepath, accepted_types=[input_type for input_type in InputType
     string_io = StringIO(file_content)
     # use pandas to parse tsv
     # set to not use first column as index
-    df = pd.read_csv(string_io, sep='\t',index_col=False)
+    # TODO use skip-read to max-row to slicing
+    input_array = np.genfromtxt(string_io, delimiter='\t',skip_header=1)
     # detect file type
-    input_type = detect_input_type(df, filepath)
+    input_type = detect_input_type(input_array, filepath)
 
     if input_type != InputType.UNRECOGNIZED:
         # slice input
         if slice_start is not None and slice_start < 0:
             raise Exception("Slice start must be positive")
-        if slice_end is not None and abs(slice_end) > df.shape[0]:
+        if slice_end is not None and abs(slice_end) > input_array.shape[0]:
             raise Exception("Slice end must not exceed dataframe rows")
-        df = df[slice_start:slice_end]
+        input_array = input_array[slice_start:slice_end]
         if input_type not in accepted_types:
             raise Exception("Not accepted format")
         # extrapolate vectors from input
-        return get_vectors(df, input_type)
+        return get_vectors(input_array, input_type)
     else:
         raise Exception("Unrecognized input format")
