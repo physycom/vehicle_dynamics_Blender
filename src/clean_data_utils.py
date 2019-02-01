@@ -34,7 +34,7 @@ Credits: Federico Bertani, Stefano Sinigardi, Alessandro Fabbri, Nico Curti
 import numpy as np
 import math
 from quaternion import quaternion
-from constants import g, kmh, degree_to_radians, pi
+from src.constants import g, kmh, degree_to_radians, pi
 
 def parse_input(df):
     """ Transform single dataframe to multiple numpy array each representing different physic quantity
@@ -178,20 +178,21 @@ def reduce_disturbance(times, vectors, window_dimension):
 
     # TODO dynamically find windows dimension for 0.5 s
     window_dimension = window_dimension
-    # use pandas because it has built in function of moving average
-    # performance overhead is not much
-    import pandas as pd
-    df = pd.DataFrame(vectors.T)
     # overwrite dataframe with its moving average
-    df = df.rolling(window=window_dimension, center=True).mean()
+    array = np.zeros(vectors.shape)
+    for i in range (0,window_dimension):
+        sliced_vec = vectors[:,i:]
+        array[:,:sliced_vec.shape[1]] += sliced_vec
+    array /= window_dimension
     # now there ara 0:windows_dimension nan rows at the beginning
     # drop these rows
-    new_low_range = math.floor(window_dimension / 2)
-    new_upper_range = math.floor(df.shape[0] - window_dimension / 2)
+    new_low_range = 0
+    #new_low_range = math.floor(window_dimension / 2)
+    new_upper_range = math.floor(vectors.shape[1] - window_dimension)
     # TODO change drop offset
-    new_vector = df[new_low_range:new_upper_range].values.T
     new_times = times[new_low_range:new_upper_range]
-    return new_times, new_vector
+    new_array = array[:,0:new_upper_range]
+    return new_times, new_array
 
 
 # threshold above which acceleration along x and y axis are considered

@@ -25,7 +25,7 @@ Credits: Federico Bertani, Stefano Sinigardi, Alessandro Fabbri, Nico Curti
 
 import unittest
 import numpy as np
-from constants import pi, g, kmh
+from src.constants import pi, g, kmh
 
 from src.clean_data_utils import reduce_disturbance, normalize_timestamp, converts_measurement_units, \
     correct_z_orientation, clear_gyro_drift, get_stationary_times, get_xy_bad_align_count, correct_xy_orientation
