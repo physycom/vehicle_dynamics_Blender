@@ -28,7 +28,7 @@ import numpy as np
 from SpringTrajectoryGenerator import SpringTrajectoryGenerator
 from CircularTrajectoryGenerator import CircularTrajectoryGenerator
 from src.integrate import cumulative_integrate, quad_integrate, trapz_integrate
-from constants import pi
+from src.constants import pi
 from src import rotate_accelerations
 
 
