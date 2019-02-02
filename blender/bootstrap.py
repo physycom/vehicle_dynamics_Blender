@@ -86,7 +86,7 @@ def uninstall_packages_from_requirements_file():
 def check_modules_existence():
     # made a list instead of using requirements.txt because packages and modules name can differ
     # also reading the output of pip freeze in blender is tricky because it's open me another instance of blender
-    required_modules = ['numpy','numba','quaternion']
+    required_modules = ['numpy','numba','numpy-quaternion']
     there_is_a_missing_package = False
     for required_module in required_modules:
         if not importlib.util.find_spec(required_module):
@@ -103,12 +103,14 @@ def install_dependencies():
 
     print("Blender path " + blender_path)
 
+    # check if pip is not installed
     if not (os.path.exists(posix_pip_location) or os.path.exists(windows_pip_location)):
         print("Downloading pip")
         # download get pip
         pip_download_location = os.path.join(addon_path, "get_pip.py")
         urllib.request.urlretrieve("https://bootstrap.pypa.io/get-pip.py",
                                    filename=pip_download_location)
+        # execute get_pip from shell
         python_bin = os.path.join(blender_python_dir, "bin")
         if (os.path.exists(os.path.join(python_bin, "python3.5m"))):
             python_interpreter = os.path.join(python_bin, "python3.5m")
