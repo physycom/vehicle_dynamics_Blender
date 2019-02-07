@@ -30,7 +30,7 @@ if __name__ == "__main__":
     src_full_path = os.path.join(my_path, "src")
     blender_utils_full_path = os.path.join(my_path,"blender")
     init_full_path = os.path.join(my_path, "__init__.py")
-    requirements_full_path = os.path.join(my_path, "requirements.txt")
+    requirements_full_path = os.path.join(my_path, "production_requirements.py")
     addon_updater_ops_path = os.path.join(my_path, "my_addon_updater_ops.py")
     new_src = os.path.join(path, "src")
     new_blender_utils = os.path.join(path,"blender")

@@ -28,6 +28,7 @@ import sys
 import urllib.request
 import subprocess
 import importlib
+from production_requirements import requirements
 from pathlib import Path
 
 addon_path = str(Path(__file__).parent.parent)
@@ -37,7 +38,7 @@ blender_path = str(Path(sys.executable).parent)
 # blender_version_dir = dirs[0]
 blender_version_dir = "2.79"
 blender_python_dir = os.path.join(blender_path, blender_version_dir, "python")
-posix_pip_location = os.path.join(blender_python_dir, "bin", "pip")
+posix_pip_location = os.path.join(blender_python_dir, "bin", "pip3")
 windows_pip_location = os.path.join(blender_python_dir, "scripts", "pip3.exe")
 pip_location = {
     'posix':posix_pip_location,
@@ -56,45 +57,20 @@ def call_system_command(command):
     except OSError as e:
         print("Execution failed:", e, file=sys.stderr)
 
-def install_packages_from_requirements_file():
+
+def install_package(package_name, version):
     command = None
+    # pip command differ by platform
     if (os.path.exists(pip_location['posix'])):
-        command = r'"{}" install -r "{}"'.format(pip_location['posix'], requirements_file_position)
+        command = r'"{}" install {}=={}'.format(pip_location['posix'], package_name,version)
     elif os.path.exists(pip_location['windows']):
-        command = r'"{}" install -r "{}"'.format(pip_location['windows'], requirements_file_position)
+        command = r'"{}" install {}=={}'.format(pip_location['windows'], package_name,version)
     if command:
         ret_code = call_system_command(command)
-        if ret_code>0:
+        if ret_code > 0:
             raise Exception("Error installing dependencies")
     else:
         raise Exception("Error on finding pip location")
-
-def uninstall_packages_from_requirements_file():
-    command = None
-    if (os.path.exists(pip_location['posix'])):
-        command = r'"{}" uninstall -y -r "{}"'.format(pip_location['posix'], requirements_file_position)
-    elif os.path.exists(pip_location['windows']):
-        command = r'"{}" uninstall -y -r "{}"'.format(pip_location['windows'], requirements_file_position)
-    if command:
-        ret_code =  call_system_command(command)
-        if ret_code>0:
-            raise Exception("Error uninstalling dependencies")
-    else:
-        raise Exception("Error on finding pip location")
-
-
-def check_modules_existence():
-    # made a list instead of using requirements.txt because packages and modules name can differ
-    # also reading the output of pip freeze in blender is tricky because it's open me another instance of blender
-    required_modules = ['numpy','numba','numpy-quaternion']
-    there_is_a_missing_package = False
-    for required_module in required_modules:
-        if not importlib.util.find_spec(required_module):
-            there_is_a_missing_package = True
-    if there_is_a_missing_package:
-        return install_packages_from_requirements_file()
-    else:
-        return 0
 
 def install_dependencies():
     # TODO handle permission errors
@@ -119,5 +95,9 @@ def install_dependencies():
         command = r'"{}" "{}"'.format(python_interpreter, pip_download_location)
         print("Command: " + command)
         call_system_command(command)
-    return_code = check_modules_existence()
-    return return_code
+    # check module existence
+    for required_module in requirements:
+        # if a required package is not installed
+        if importlib.util.find_spec(required_module['name']) is None:
+            # install it
+            install_package(required_module['pip_name'],required_module['version'])
