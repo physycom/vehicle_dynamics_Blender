@@ -2,8 +2,8 @@ bl_info = {
     "name": "Inertial-GNSS car data to blender",
     "author": "Federico Bertani",
     "location": "View3D > Tools",
-    "description": "Blender simulation generator from inertial sensor data on car",
-    "category": "Object", # TODO other possible categories are Animation and Physics
+    "description": "Blender simulation generator from inertial sensor data on vehicle",
+    "category": "Physics",
     "version": (1,1,2),
     "tracker_url" : "https://github.com/physycom/inertial_to_blender/issues"
 }
