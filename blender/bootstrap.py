@@ -44,7 +44,6 @@ pip_location = {
     'posix':posix_pip_location,
     'windows':windows_pip_location
 }
-requirements_file_position = os.path.join(addon_path, "requirements.txt")
 
 
 def call_system_command(command):
