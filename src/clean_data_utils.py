@@ -61,6 +61,7 @@ def get_stationary_times(gps_speed):
     stationary_times = []
     # repeat until at least a stationary time is found
     while (len(stationary_times)==0):
+        # TODO this is very important find a way to smart finding a good value for this
         min_stationary_time_length = 10
         # Find times where gps speed is inside threshold
         # Didn't use np.nonzero because i needed contiguous slices and also check on length of slice
@@ -177,22 +178,58 @@ def reduce_disturbance(times, vectors, window_dimension):
     """
 
     # TODO dynamically find windows dimension for 0.5 s
-    window_dimension = window_dimension
-    # overwrite dataframe with its moving average
-    array = np.zeros(vectors.shape)
-    for i in range (0,window_dimension):
-        sliced_vec = vectors[:,i:]
-        array[:,:sliced_vec.shape[1]] += sliced_vec
-    array /= window_dimension
+    window_dimension = 3
+    # iterating moving average is the same of weighting it like a gaussian
+    for j in range(0,3):
+        # overwrite dataframe with its moving average
+        array = np.zeros(vectors.shape)
+        for i in range (0,window_dimension):
+            sliced_vec = vectors[:,i:]
+            array[:,:sliced_vec.shape[1]] += sliced_vec
+        # centered moving average
+        array[:,round(window_dimension/2):] /= window_dimension
     # now there ara 0:windows_dimension nan rows at the beginning
     # drop these rows
-    new_low_range = 0
+    new_low_range = round(window_dimension/2)
     #new_low_range = math.floor(window_dimension / 2)
-    new_upper_range = math.floor(vectors.shape[1] - window_dimension)
+    new_upper_range = math.floor(vectors.shape[1] - round(window_dimension/2))
     # TODO change drop offset
-    new_times = times[new_low_range:new_upper_range]
-    new_array = array[:,0:new_upper_range]
-    return new_times, new_array
+    times = times[new_low_range:new_upper_range]
+    vectors = array[:,new_low_range:new_upper_range]
+    return times, vectors
+
+def manual_sensor_rotation_fix(accelerations, angular_velocities, angle_x, angle_y, angle_z):
+    """
+    Routine to rotate all inertial vector by euler angle. Useful for fixing sensor bad alignment if known.
+
+    :param accelerations: 3xn array
+    :param angular_velocities: 3xn array
+    :param angle_x: euler angle in radians
+    :param angle_y: euler angle in radians
+    :param angle_z: euler angle in radians
+    :return:
+    """
+
+    # create 3 matrix to compose rotation matrix
+    R_x = np.array([[1, 0, 0],
+                    [0, math.cos(angle_x), -math.sin(angle_x)],
+                    [0, math.sin(angle_x), math.cos(angle_x)]
+                    ])
+
+    R_y = np.array([[math.cos(angle_y), 0, math.sin(angle_y)],
+                    [0, 1, 0],
+                    [-math.sin(angle_y), 0, math.cos(angle_y)]
+                    ])
+
+    R_z = np.array([[math.cos(angle_z), -math.sin(angle_z), 0],
+                    [math.sin(angle_z), math.cos(angle_z), 0],
+                    [0, 0, 1]
+                    ])
+
+    R = np.dot(R_z, np.dot(R_y, R_x))
+    # rotation by rotation matrix is the fastest one
+    accelerations[...] = np.matmul(R, accelerations)
+    angular_velocities[...] = np.matmul(R, accelerations)
 
 
 # threshold above which acceleration along x and y axis are considered
