@@ -4,12 +4,12 @@ bl_info = {
     "location": "View3D > Tools",
     "description": "Blender simulation generator from inertial sensor data on vehicle",
     "category": "Physics",
-    "version": (1,1,2),
+    "version": (1,1,3),
     "tracker_url" : "https://github.com/physycom/inertial_to_blender/issues"
 }
 
 import bpy
-import sys
+import sys, math
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent))
 # different name from project and deployed zip
@@ -94,7 +94,11 @@ class AnimateObject(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        bootstrap.check_modules_existence()
+        # call install dependencies to be sure that everything needed is present
+        # on auto-update register is not called
+        bootstrap.install_dependencies()
+        # import now get trajectory from path because some package could be still not installed if imported
+        # in global scope
         from src import get_trajectory_from_path
         scene = context.scene
         # get current frame per seconds value
@@ -106,41 +110,49 @@ class AnimateObject(bpy.types.Operator):
         positions, times, angular_positions = get_trajectory_from_path(scene.datasetPath,scene.use_gps)
         # set animation lenght
         bpy.context.scene.frame_end = times[-1] * fps
-        # create animation data
+        # create old animation data (if present)
         obj.animation_data_clear()
         obj.animation_data_create()
         # create a new animation data action
         obj.animation_data.action = bpy.data.actions.new(name="MyAction")
+        # use directly quaternion for rotations
         obj.rotation_mode = 'QUATERNION'
-        positions_lenght = positions.shape[1]
-        # create f-curve for each axis
+        # set a step for avoiding set too much keyframes
+        # ~ 1 keyframe for frame is enough
+        step = fps
+        # number of keyframes that will be inserted
+        n_keyframe = math.ceil(positions.shape[1]/step)
+        # create f-curve for each location axis
         for index in range(3):
             fcurve_location = obj.animation_data.action.fcurves.new(data_path="location", index=index)
-            fcurve_location.keyframe_points.add(positions_lenght)
-            for i in range(0, positions_lenght):
-                fcurve_location.keyframe_points[i].interpolation = 'CONSTANT'
-                fcurve_location.keyframe_points[i].co = times[i] * fps, positions[index, i]
+            fcurve_location.keyframe_points.add(n_keyframe)
+            for i in range(0, positions.shape[1],step):
+                keyframe_index = math.floor(i/step)
+                fcurve_location.keyframe_points[keyframe_index].interpolation = 'CONSTANT'
+                fcurve_location.keyframe_points[keyframe_index].co = times[i] * fps, positions[index, i]
         # create f-curve for each quaternion component
         for index in range(4):
             fcurve_rotation = obj.animation_data.action.fcurves.new(data_path="rotation_quaternion", index=index)
-            fcurve_rotation.keyframe_points.add(positions_lenght)
-            for i in range(0, positions_lenght):
-                fcurve_rotation.keyframe_points[i].interpolation = 'CONSTANT'
-                fcurve_rotation.keyframe_points[i].co = times[i] * fps, angular_positions[index,i]
+            fcurve_rotation.keyframe_points.add(n_keyframe)
+            for i in range(0, positions.shape[1],step):
+                keyframe_index = math.floor(i / step)
+                fcurve_rotation.keyframe_points[keyframe_index].interpolation = 'CONSTANT'
+                fcurve_rotation.keyframe_points[keyframe_index].co = times[i] * fps, angular_positions[index,i]
         print("Done adding keyframes!")
         curveData = bpy.data.curves.new('myCurve', type='CURVE')
         curveData.dimensions = '3D'
         curveData.resolution_u = 2
 
-        # map coords to spline
+        # create a curve that shows the vehicle path
         polyline = curveData.splines.new('POLY')
-        polyline.points.add(positions_lenght)
+        polyline.points.add(positions.shape[1])
         for i, location in enumerate(positions.T):
             polyline.points[i].co = (*location,1)
         curveOB = bpy.data.objects.new('myCurve', curveData)
         curveData.bevel_depth = 0.01
         # attach to scene and validate context
         scene.objects.link(curveOB)
+
         return {'FINISHED'}
 
 def register():
