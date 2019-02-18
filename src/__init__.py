@@ -28,13 +28,14 @@ import numpy as np
 
 from src.clean_data_utils import converts_measurement_units, reduce_disturbance, \
     clear_gyro_drift, correct_z_orientation, normalize_timestamp, \
-    sign_inversion_is_necessary, get_stationary_times, correct_xy_orientation
+    sign_inversion_is_necessary, get_stationary_times, correct_xy_orientation, \
+    truncate_if_crash
 from src.gnss_utils import get_positions, get_velocities, get_initial_angular_position, get_first_motion_time
 from src.input_manager import parse_input, InputType
 from src.integrate import cumulative_integrate
 from src.rotations import rotate_accelerations, align_to_world
 
-def get_trajectory_from_path(path,use_gps=True):
+def get_trajectory_from_path(path,use_gps=True,crash=False):
     """
     parse input file from path, clean data and integrate positions
 
@@ -50,7 +51,12 @@ def get_trajectory_from_path(path,use_gps=True):
         times, coordinates, altitudes, gps_speed, heading, accelerations, angular_velocities = parse_input(path, [
             InputType.UNMOD_FULLINERTIAL])
 
+        period = times[1]-times[0]
+
         converts_measurement_units(accelerations, angular_velocities, gps_speed, coordinates, heading)
+
+        times, gps_speed, accelerations, angular_velocities, coordinates, heading = \
+            truncate_if_crash(crash, times, gps_speed, accelerations, angular_velocities, coordinates, heading)
 
         # get positions from GNSS data
         gnss_positions, headings_2 = get_positions(coordinates, altitudes)
@@ -68,7 +74,7 @@ def get_trajectory_from_path(path,use_gps=True):
         real_speeds = np.linalg.norm(real_velocities, axis=0)
 
         # get time windows where vehicle is stationary
-        stationary_times = get_stationary_times(gps_speed)
+        stationary_times = get_stationary_times(gps_speed,period)
 
         # clear gyroscope drift
         angular_velocities = clear_gyro_drift(angular_velocities, stationary_times)
@@ -113,7 +119,12 @@ def get_trajectory_from_path(path,use_gps=True):
         times, _, _, gps_speed, _, accelerations, angular_velocities = parse_input(path, [
             InputType.UNMOD_FULLINERTIAL])
 
+        period = times[1] - times[0]
+
         converts_measurement_units(accelerations, angular_velocities, gps_speed)
+
+        times, gps_speed, accelerations, angular_velocities, _, _ = \
+            truncate_if_crash(crash, times, gps_speed, accelerations, angular_velocities)
 
         # reduce accelerations disturbance
         times, accelerations = reduce_disturbance(times, accelerations, window_size)
@@ -121,7 +132,7 @@ def get_trajectory_from_path(path,use_gps=True):
         _, angular_velocities = reduce_disturbance(times, angular_velocities, window_size)
 
         # get time windows where vehicle is stationary
-        stationary_times = get_stationary_times(gps_speed)
+        stationary_times = get_stationary_times(gps_speed,period)
 
         # clear gyroscope drift
         angular_velocities = clear_gyro_drift(angular_velocities, stationary_times)

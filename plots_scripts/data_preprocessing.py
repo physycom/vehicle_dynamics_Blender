@@ -78,8 +78,10 @@ if __name__ == "__main__":
     # slice gps_speed to remove null values
     gps_speed = gps_speed[round(window_size / 2):-round(window_size / 2)]
 
+    period = times[1] - times[0]
+
     # get time windows where vehicle is stationary
-    stationary_times = get_stationary_times(gps_speed)
+    stationary_times = get_stationary_times(gps_speed,period)
 
     # clear gyroscope drift
     angular_velocities = clear_gyro_drift(angular_velocities, stationary_times)

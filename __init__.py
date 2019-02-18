@@ -4,7 +4,7 @@ bl_info = {
     "location": "View3D > Tools",
     "description": "Blender simulation generator from inertial sensor data on vehicle",
     "category": "Physics",
-    "version": (1,1,3),
+    "version": (1,2,0),
     "tracker_url" : "https://github.com/physycom/inertial_to_blender/issues"
 }
 
@@ -32,6 +32,11 @@ bpy.types.Scene.use_gps = BoolProperty(
     description="Use GPS data",
     default = True)
 
+bpy.types.Scene.crash = BoolProperty(
+    name="Reconstruct crash",
+    description="The dataset represent a crash, reconstruct it",
+    default = False)
+
 
 class InertialBlenderPanel(bpy.types.Panel):
     bl_space_type = 'VIEW_3D'
@@ -56,6 +61,7 @@ class InertialBlenderPanel(bpy.types.Panel):
         col.operator("physycom.load_dataset")
         col.prop(context.scene, "datasetPath")
         col.prop(context.scene, "use_gps", text="Use GPS")
+        col.prop(context.scene, "crash", text="Reconstruct crash")
         col.operator("physycom.animate_object")
 
         if addon_updater_ops.updater.update_ready == True:
@@ -106,8 +112,10 @@ class AnimateObject(bpy.types.Operator):
         scene.unit_settings.system = 'METRIC'
         # get current selected object in scene
         obj = scene.objects.active
+        use_gps = scene.use_gps
+        crash = scene.crash
         # TODO check object is not None
-        positions, times, angular_positions = get_trajectory_from_path(scene.datasetPath,scene.use_gps)
+        positions, times, angular_positions = get_trajectory_from_path(scene.datasetPath,use_gps,crash)
         # set animation lenght
         bpy.context.scene.frame_end = times[-1] * fps
         # create old animation data (if present)

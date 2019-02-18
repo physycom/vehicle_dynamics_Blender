@@ -53,8 +53,6 @@ def show_gyroscope_drift(title):
 
 
 if __name__ == "__main__":
-    window_size = 20
-
     # currently default format is unmodified fullinertial but other formats are / will be supported
     times, coordinates, altitudes, gps_speed, heading, accelerations, angular_velocities = parse_input(sys.argv[1], [
         InputType.UNMOD_FULLINERTIAL])
@@ -62,10 +60,10 @@ if __name__ == "__main__":
     converts_measurement_units(accelerations, np.array([0.1]), gps_speed, coordinates, heading)
 
     # reduce accelerations disturbance
-    times, accelerations = reduce_disturbance(times, accelerations, window_size)
+    times, accelerations = reduce_disturbance(times, accelerations)
     # reduce angular velocities disturbance
-    _, angular_velocities = reduce_disturbance(times, angular_velocities, window_size)
-    gps_speed = gps_speed[round(window_size / 2):-round(window_size / 2)]
+    _, angular_velocities = reduce_disturbance(times, angular_velocities)
+    _, gps_speed= reduce_disturbance(times,gps_speed)
     normalize_timestamp(times)
 
     # get time windows where vehicle is stationary

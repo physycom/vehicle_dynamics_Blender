@@ -39,15 +39,16 @@ class ClearDataUtilsTest(unittest.TestCase):
         filepath = 'tests/test_fixtures/crash_01.txt'
         self.times, self.gps_speed, self.accelerations, self.angular_velocities = parse_input(filepath,[InputType.INERTIAL])
         converts_measurement_units(self.accelerations,self.angular_velocities,self.gps_speed)
+        self.period = self.times[1]-self.times[0]
 
     def test_detect_stationary_times(self):
         # only check get_stationary_times doesn't raise exceptions
-        stationary_times = get_stationary_times(self.gps_speed)
+        stationary_times = get_stationary_times(self.gps_speed,self.period)
         self.assertGreater(len(stationary_times),0)
 
     def test_clearGyroDrift(self):
         drift_tolerance = 0.0002
-        stationary_times = get_stationary_times(self.gps_speed)
+        stationary_times = get_stationary_times(self.gps_speed,self.period)
         _, self.angular_velocities = reduce_disturbance(self.times, self.angular_velocities,reduce_disturbance_window_size)
         # get initial stationary time angular speed around x-axis
         initial_stationary_time_gx_value = self.angular_velocities[0, stationary_times[0][0]:stationary_times[0][1]].mean()
@@ -91,7 +92,7 @@ class ClearDataUtilsTest(unittest.TestCase):
         self.assertTrue(ratio >= variance_reduction_factor)
 
     def test_correct_z_orientation(self):
-        stationary_times = get_stationary_times(self.gps_speed)
+        stationary_times = get_stationary_times(self.gps_speed,self.period)
         _, self.accelerations = reduce_disturbance(self.times, self.accelerations,reduce_disturbance_window_size)
         threshold = 0.1
         # get average value in start stationary time
@@ -110,7 +111,7 @@ class ClearDataUtilsTest(unittest.TestCase):
             assert stationary_ay_mean_after < stationary_ay_mean_before
 
     def test_correct_xy_orientation(self):
-        stationary_times = get_stationary_times(self.gps_speed)
+        stationary_times = get_stationary_times(self.gps_speed,self.period)
         # reduce disturbance
         _, self.accelerations = reduce_disturbance(self.times, self.accelerations, reduce_disturbance_window_size)
         _, self.angular_velocities = reduce_disturbance(self.times, self.angular_velocities, reduce_disturbance_window_size)

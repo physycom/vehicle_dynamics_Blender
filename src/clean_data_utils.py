@@ -36,6 +36,8 @@ import math
 from quaternion import quaternion
 from src.constants import g, kmh, degree_to_radians, pi
 
+crash_accelleration_treshold = 15
+
 def parse_input(df):
     """ Transform single dataframe to multiple numpy array each representing different physic quantity
 
@@ -49,23 +51,22 @@ def parse_input(df):
     gps_speed = df['speed'].values.T
     return times, gps_speed, accelerations, angular_velocities
 
-def get_stationary_times(gps_speed):
+def get_stationary_times(gps_speed,period):
     """ Returns list of index where the gps speed is near zero
 
     :param gps_speed: 1xn numpy array of gps speed in m/s
     :return: list of tuples, each one with start and final timestamp of a stationary time index
     """
 
-    speed_threshold = 1e-15  # 0.2 m/s
+    speed_threshold = 0.05  # 0.2 m/s
     stationary_times = []
     # repeat until at least a stationary time is found
     while (len(stationary_times)==0):
-        # TODO this is very important find a way to smart finding a good value for this
-        min_stationary_time_length = 10
+        # at least 3 seconds stationary
+        min_stationary_time_length = round(1/period)
         # Find times where gps speed is inside threshold
         # Didn't use np.nonzero because i needed contiguous slices and also check on length of slice
         boolean_vect = np.bitwise_and(gps_speed > -speed_threshold, gps_speed < speed_threshold)
-        import math
         # set a value that can't exist as index
         first_true = math.inf
         last_true = math.inf
@@ -90,9 +91,37 @@ def get_stationary_times(gps_speed):
             stationary_times.append((first_true, last_true))
         # TODO raise exception if there are no stationary times
         # increase speed threshold in case stationary times are not found
-        speed_threshold += 0.1
+        speed_threshold += 0.01
     return stationary_times
 
+def truncate_if_crash(crash, times, gps_speed, accelerations, angular_velocities, coordinates=None, heading=None):
+    """
+    Removed unreliable data after a crash
+    If crash==True then search for a acceleration over a certain treshold, remove records after that
+    Coordinates and heading are optional, for supporting both using gps data and not.
+
+    :param crash: bool
+    :param times: 1xn numpy array
+    :param gps_speed: 1xn numpy array
+    :param accelerations: 3xn numpy array
+    :param angular_velocities: 3xn numpy array
+    :param coordinates: 2xn numpy array
+    :param heading: 1xn numpy array
+    :return:times, gps_speed, accelerations, angular_velocities, coordinates, [coordinates, heading]
+    """
+    if (crash):
+        crashes = np.argwhere(np.linalg.norm(accelerations, axis=0) > crash_accelleration_treshold)
+        if (len(crashes) > 1):
+            crash_1 = crashes[0][0]
+            accelerations = accelerations[:, :crash_1]
+            angular_velocities = angular_velocities[:, :crash_1]
+            gps_speed = gps_speed[:crash_1]
+            times = times[:crash_1]
+            if coordinates:
+                coordinates = coordinates[:,:crash_1]
+            if heading:
+                heading = heading[:crash_1]
+    return times, gps_speed, accelerations, angular_velocities, coordinates, coordinates, heading
 
 def converts_measurement_units(accelerations, angular_velocities, gps_speed=None, coordinates=None, heading=None):
     """ Convert physics quantity measurement unit
@@ -164,7 +193,7 @@ def clear_gyro_drift(angular_velocities, stationary_times):
     return angular_velocities
 
 
-def reduce_disturbance(times, vectors, window_dimension):
+def reduce_disturbance(times, vectors, window_dimension=100):
     """ Reduce data disturbance with a moving average
 
     The length of the window is calculated internally in function of vector length
@@ -176,8 +205,6 @@ def reduce_disturbance(times, vectors, window_dimension):
     :return 2 numpy vector: new times and new vector
     """
 
-    # TODO dynamically find windows dimension for 0.5 s
-    window_dimension = 100
     # iterating moving average is the same of weighting it like a gaussian
     for j in range(10):
         # overwrite dataframe with its moving average
