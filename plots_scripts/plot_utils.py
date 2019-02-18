@@ -65,7 +65,10 @@ def plot_vectors(vectors_list, label_list=None, title=None, tri_dim=True, horiz=
                 axes_3d.set_ylabel('y')
                 axes_3d.set_zlabel('z')
         else:
-            axes_2d.plot(vectors, label=label)
+            if (horiz is not None):
+                axes_2d.plot(horiz, vectors, label=label)
+            else:
+                axes_2d.plot(vectors, label=label)
     axes_2d.legend()
     if (tri_dim):
         axes_3d.legend()
