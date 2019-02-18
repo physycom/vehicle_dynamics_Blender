@@ -49,7 +49,6 @@ def parse_input(df):
     gps_speed = df['speed'].values.T
     return times, gps_speed, accelerations, angular_velocities
 
-
 def get_stationary_times(gps_speed):
     """ Returns list of index where the gps speed is near zero
 
@@ -178,9 +177,9 @@ def reduce_disturbance(times, vectors, window_dimension):
     """
 
     # TODO dynamically find windows dimension for 0.5 s
-    window_dimension = 3
+    window_dimension = 100
     # iterating moving average is the same of weighting it like a gaussian
-    for j in range(0,3):
+    for j in range(10):
         # overwrite dataframe with its moving average
         array = np.zeros(vectors.shape)
         for i in range (0,window_dimension):
