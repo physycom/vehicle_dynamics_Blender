@@ -31,7 +31,7 @@ import numpy as np
 
 from src.clean_data_utils import converts_measurement_units, reduce_disturbance, \
     clear_gyro_drift, correct_z_orientation, normalize_timestamp, \
-    sign_inversion_is_necessary, get_stationary_times, correct_xy_orientation
+    sign_inversion_is_necessary, get_stationary_times
 from src.gnss_utils import get_positions, get_velocities, get_initial_angular_position, get_first_motion_time
 from src.input_manager import parse_input, InputType
 from src.integrate import cumulative_integrate, trapz_integrate_delta, simps_integrate_delta
@@ -79,10 +79,6 @@ if __name__ == '__main__':
 
     # remove g
     accelerations[2] -= accelerations[2, stationary_times[0][0]:stationary_times[0][-1]].mean()
-
-    # correct alignment in xy plane
-    # commented out for performance reason, it shouldn be necessary for this experiment.
-    #accelerations = correct_xy_orientation(accelerations, angular_velocities)
 
     # convert to laboratory frame of reference
     motion_time = get_first_motion_time(stationary_times, gnss_positions)

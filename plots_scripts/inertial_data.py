@@ -30,7 +30,7 @@ import numpy as np
 from plots_scripts.plot_utils import plot_vectors
 from src.clean_data_utils import converts_measurement_units, reduce_disturbance, \
     clear_gyro_drift, correct_z_orientation, normalize_timestamp, \
-    sign_inversion_is_necessary, get_stationary_times, correct_xy_orientation
+    sign_inversion_is_necessary, get_stationary_times
 from src.gnss_utils import get_positions, get_velocities, get_accelerations, get_first_motion_time, \
     get_initial_angular_position
 from src.input_manager import parse_input, InputType
@@ -73,14 +73,6 @@ if __name__ == '__main__':
 
     # remove g
     accelerations[2] -= accelerations[2, stationary_times[0][0]:stationary_times[0][-1]].mean()
-
-    plot_vectors([accelerations[0:2], angular_velocities[2]],
-                 ['inertial_ax', 'omega_z'], title="inertial accelerations before rotations", tri_dim=False)
-
-    accelerations = correct_xy_orientation(accelerations, angular_velocities)
-
-    plot_vectors([accelerations[0:2], angular_velocities[2]],
-                 ['inertial_ax', 'omega_z'], title="inertial accelerations after rotations", tri_dim=False)
 
     # convert to laboratory frame of reference
     motion_time = get_first_motion_time(stationary_times, gnss_positions)
