@@ -36,7 +36,7 @@ import math
 from quaternion import quaternion
 from src.constants import g, kmh, degree_to_radians, pi
 
-crash_accelleration_treshold = 15
+crash_acceleration_treshold = 15
 
 def parse_input(df):
     """ Transform single dataframe to multiple numpy array each representing different physic quantity
@@ -110,7 +110,7 @@ def truncate_if_crash(crash, times, gps_speed, accelerations, angular_velocities
     :return:times, gps_speed, accelerations, angular_velocities, coordinates, [coordinates, heading]
     """
     if (crash):
-        crashes = np.argwhere(np.linalg.norm(accelerations, axis=0) > crash_accelleration_treshold)
+        crashes = np.argwhere(np.linalg.norm(accelerations, axis=0) > crash_acceleration_treshold)
         if (len(crashes) > 1):
             crash_1 = crashes[0][0]
             accelerations = accelerations[:, :crash_1]

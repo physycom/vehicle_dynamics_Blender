@@ -4,7 +4,7 @@ bl_info = {
     "location": "View3D > Tools",
     "description": "Blender simulation generator from inertial sensor data on vehicle",
     "category": "Physics",
-    "version": (1,2,0),
+    "version": (2,0,0),
     "tracker_url" : "https://github.com/physycom/inertial_to_blender/issues"
 }
 
@@ -112,13 +112,12 @@ class AnimateObject(bpy.types.Operator):
         scene.unit_settings.system = 'METRIC'
         # get current selected object in scene
         obj = scene.objects.active
+        # TODO handle case when nothing is selected
         use_gps = scene.use_gps
         crash = scene.crash
         # TODO check object is not None
         positions, times, angular_positions = get_trajectory_from_path(scene.datasetPath,use_gps,crash)
-        # set animation lenght
-        bpy.context.scene.frame_end = times[-1] * fps
-        # create old animation data (if present)
+        # clear old animation data (if present)
         obj.animation_data_clear()
         obj.animation_data_create()
         # create a new animation data action
@@ -130,6 +129,33 @@ class AnimateObject(bpy.types.Operator):
         step = fps
         # number of keyframes that will be inserted
         n_keyframe = math.ceil(positions.shape[1]/step)
+
+        if not crash:
+            bpy.context.scene.frame_end = round(times[-1] * fps)
+        else:
+            bpy.ops.rigidbody.objects_add(type='ACTIVE')
+            bpy.context.scene.frame_end = round(2 * (times[-1] * fps))
+            rigidbody_world = scene.rigidbody_world
+            rigidbody_world.steps_per_second = 32767
+            rigidbody_world.solver_iterations = 1000
+            rigidbody_world.point_cache.frame_start = 0
+            rigidbody_world.point_cache.frame_end = round(2 * round(times[-1] * fps))
+            # set dumping to 0
+            obj.rigid_body.linear_damping = 0
+            # set keyframe at 0 using animation keyframe
+            obj.animation_data.action = bpy.data.actions.new(name="Kinematic")
+            fcurve_kinematic = obj.animation_data.action.fcurves.new(data_path="rigid_body.kinematic")
+            fcurve_kinematic.keyframe_points.add(3)
+            fcurve_kinematic.keyframe_points[0].co = 0, True
+            obj.location = positions[:,-1]
+            # set keyframe at the end using physics engine
+            fcurve_kinematic.keyframe_points[1].co = round((times[-1]*fps)-10), True
+            fcurve_kinematic.keyframe_points[2].co = round(times[-1]*fps), False
+            for i in range(3):
+                fcurve_kinematic.keyframe_points[i].interpolation = 'CONSTANT'
+
+            # TODO set steps per seconds to 1000
+
         # create f-curve for each location axis
         for index in range(3):
             fcurve_location = obj.animation_data.action.fcurves.new(data_path="location", index=index)
@@ -137,7 +163,7 @@ class AnimateObject(bpy.types.Operator):
             for i in range(0, positions.shape[1],step):
                 keyframe_index = math.floor(i/step)
                 fcurve_location.keyframe_points[keyframe_index].interpolation = 'CONSTANT'
-                fcurve_location.keyframe_points[keyframe_index].co = times[i] * fps, positions[index, i]
+                fcurve_location.keyframe_points[keyframe_index].co = round(times[i] * fps), positions[index, i]
         # create f-curve for each quaternion component
         for index in range(4):
             fcurve_rotation = obj.animation_data.action.fcurves.new(data_path="rotation_quaternion", index=index)
@@ -145,13 +171,18 @@ class AnimateObject(bpy.types.Operator):
             for i in range(0, positions.shape[1],step):
                 keyframe_index = math.floor(i / step)
                 fcurve_rotation.keyframe_points[keyframe_index].interpolation = 'CONSTANT'
-                fcurve_rotation.keyframe_points[keyframe_index].co = times[i] * fps, angular_positions[index,i]
+                fcurve_rotation.keyframe_points[keyframe_index].co = round(times[i] * fps), angular_positions[index,i]
         print("Done adding keyframes!")
+
+        if (crash):
+            #bpy.ops.action.clean(channels=True)
+            bpy.ops.ptcache.free_bake_all()
+            bpy.ops.ptcache.bake_all()
+
+        # create a curve that shows the vehicle path
         curveData = bpy.data.curves.new('myCurve', type='CURVE')
         curveData.dimensions = '3D'
         curveData.resolution_u = 2
-
-        # create a curve that shows the vehicle path
         polyline = curveData.splines.new('POLY')
         polyline.points.add(positions.shape[1])
         for i, location in enumerate(positions.T):
