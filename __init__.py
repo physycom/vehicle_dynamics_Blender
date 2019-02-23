@@ -9,7 +9,7 @@ bl_info = {
 }
 
 import bpy
-import sys, math
+import sys, math, os
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent))
 # different name from project and deployed zip
@@ -37,6 +37,12 @@ bpy.types.Scene.crash = BoolProperty(
     description="The dataset represent a crash, reconstruct it",
     default = False)
 
+bpy.types.Scene.ignore_z = BoolProperty(
+    name="Ignore vertical motion",
+    description="Ignore movement on z axis",
+    default = False)
+
+
 
 class InertialBlenderPanel(bpy.types.Panel):
     bl_space_type = 'VIEW_3D'
@@ -62,7 +68,8 @@ class InertialBlenderPanel(bpy.types.Panel):
         col.prop(context.scene, "datasetPath")
         col.prop(context.scene, "use_gps", text="Use GPS")
         col.prop(context.scene, "crash", text="Reconstruct crash")
-        col.operator("physycom.animate_object")
+        col.prop(context.scene,"ignore_z", text="Ignore vertical movements")
+        col.operator("physycom.reconstruct_dynamics")
 
         if addon_updater_ops.updater.update_ready == True:
             layout.label("Update available", icon="INFO")
@@ -92,31 +99,63 @@ class LoadDataset(bpy.types.Operator):
         return {'RUNNING_MODAL'}
 
 
-class AnimateObject(bpy.types.Operator):
+class ReconstructDynamics(bpy.types.Operator):
     """Object Cursor Array"""
     # TODO use more standard name
-    bl_idname = "physycom.animate_object"
-    bl_label = "Animate object"
+    bl_idname = "physycom.reconstruct_dynamics"
+    bl_label = "Reconstruct Dynamics"
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
         # call install dependencies to be sure that everything needed is present
-        # on auto-update register is not called
+        # because on auto-update register is not called
         bootstrap.install_dependencies()
         # import now get trajectory from path because some package could be still not installed if imported
         # in global scope
         from src import get_trajectory_from_path
         scene = context.scene
+        if 'Camaro' not in scene.objects.keys():
+            # path of .blend file with car included in the add-on
+            carpath = os.path.join(os.path.abspath(os.path.dirname(__file__)), "camaro_for_link.blend")
+            # append scene with car (this scene will be temporary but necessary)
+            bpy.ops.wm.append(directory=carpath, filename="Scene/CamaroScene")
+            # get car's scene object
+            scene2 = bpy.data.scenes['CamaroScene']
+            # get mesh object from car's scene
+            camaro_obj = scene2.objects['Camaro']
+            # move appended object to first scene
+            scene.objects.link(camaro_obj)
+            # make car object in first scene local so when the object in the second scene will be deleted
+            # this object will not be
+            obj = scene.objects['Camaro'].make_local()
+            # set the car object as the active object in the first scene
+            scene.objects.active = obj
+            # for each material slot in the car object
+            for material_slot in obj.material_slots:
+                # set to not use nodes for material, so the car is not grey
+                material_slot.material.use_nodes = False
+            # TODO check if necessary to uncomment this
+            # for object_ in scene2.objects:
+            #    bpy.data.objects.remove(object_, True)
+            # remove second temporary scene
+            bpy.data.scenes.remove(scene2, True)
+        # get car object from scene
+        obj = scene.objects['Camaro']
+        # get from checkbox if using gps data to reconstruct
+        use_gps = scene.use_gps
+        # get from checkbox if using crash mode
+        # (searching for a high accelleration, removing unreliable records and use physics engine)
+        crash = scene.crash
+        # get from checkbox if ignoring vertical movements
+        ignore_z = scene.ignore_z
+        # get from textinput the dataset path
+        datasetpath = scene.datasetPath
         # get current frame per seconds value
         fps = scene.render.fps
+        # set to use meters for distance
         scene.unit_settings.system = 'METRIC'
-        # get current selected object in scene
-        obj = scene.objects.active
-        # TODO handle case when nothing is selected
-        use_gps = scene.use_gps
-        crash = scene.crash
-        # TODO check object is not None
-        positions, times, angular_positions = get_trajectory_from_path(scene.datasetPath,use_gps,crash)
+        # reconstruct car trajectory
+        positions, times, angular_positions = get_trajectory_from_path(datasetpath, use_gps, crash)
         # clear old animation data (if present)
         obj.animation_data_clear()
         obj.animation_data_create()
@@ -126,20 +165,32 @@ class AnimateObject(bpy.types.Operator):
         obj.rotation_mode = 'QUATERNION'
         # set a step for avoiding set too much keyframes
         # ~ 1 keyframe for frame is enough
-        step = fps
+        total_time = times[-1] - times[0]
+        total_frames = total_time * fps
+        if positions.shape[1] > total_frames:
+            # downsampling
+            step = int(positions.shape[1] / total_frames)
+        else:
+            step = 1
         # number of keyframes that will be inserted
-        n_keyframe = math.ceil(positions.shape[1]/step)
+        n_keyframe = math.ceil(positions.shape[1] / step)
 
         if not crash:
-            bpy.context.scene.frame_end = round(times[-1] * fps)
+            scene.frame_end = round(times[-1] * fps)
         else:
             bpy.ops.rigidbody.objects_add(type='ACTIVE')
-            bpy.context.scene.frame_end = round(2 * (times[-1] * fps))
+            scene.frame_end = round(2 * (times[-1] * fps))
             rigidbody_world = scene.rigidbody_world
-            rigidbody_world.steps_per_second = 32767
-            rigidbody_world.solver_iterations = 1000
+            # set car bounciness (value measured in real life scenario)
+
+            rigidbody_world.steps_per_second = 1000
+            rigidbody_world.solver_iterations = 100
             rigidbody_world.point_cache.frame_start = 0
             rigidbody_world.point_cache.frame_end = round(2 * round(times[-1] * fps))
+            # set bounciness
+            obj.rigid_body.restitution = 0.05
+            # set mass
+            obj.rigid_body.mass = 1600
             # set dumping to 0
             obj.rigid_body.linear_damping = 0
             # set keyframe at 0 using animation keyframe
@@ -147,50 +198,54 @@ class AnimateObject(bpy.types.Operator):
             fcurve_kinematic = obj.animation_data.action.fcurves.new(data_path="rigid_body.kinematic")
             fcurve_kinematic.keyframe_points.add(3)
             fcurve_kinematic.keyframe_points[0].co = 0, True
-            obj.location = positions[:,-1]
+            obj.location = positions[:, -1]
             # set keyframe at the end using physics engine
-            fcurve_kinematic.keyframe_points[1].co = round((times[-1]*fps)-10), True
-            fcurve_kinematic.keyframe_points[2].co = round(times[-1]*fps), False
+            fcurve_kinematic.keyframe_points[1].co = round((times[-1] * fps) - 10), True
+            fcurve_kinematic.keyframe_points[2].co = round(times[-1] * fps), False
             for i in range(3):
                 fcurve_kinematic.keyframe_points[i].interpolation = 'CONSTANT'
 
-            # TODO set steps per seconds to 1000
-
+        if ignore_z:
+            location_channels = [0,1]
+            rotation_channels = [2]
+        else:
+            location_channels = rotation_channels = range(3)
         # create f-curve for each location axis
-        for index in range(3):
+        for index in location_channels:
             fcurve_location = obj.animation_data.action.fcurves.new(data_path="location", index=index)
             fcurve_location.keyframe_points.add(n_keyframe)
-            for i in range(0, positions.shape[1],step):
-                keyframe_index = math.floor(i/step)
-                fcurve_location.keyframe_points[keyframe_index].interpolation = 'CONSTANT'
+            for i in range(0, positions.shape[1], step):
+                keyframe_index = math.floor(i / step)
+                # TODO change not constant
+                fcurve_location.keyframe_points[keyframe_index].interpolation = 'LINEAR'
                 fcurve_location.keyframe_points[keyframe_index].co = round(times[i] * fps), positions[index, i]
         # create f-curve for each quaternion component
         for index in range(4):
             fcurve_rotation = obj.animation_data.action.fcurves.new(data_path="rotation_quaternion", index=index)
             fcurve_rotation.keyframe_points.add(n_keyframe)
-            for i in range(0, positions.shape[1],step):
+            for i in range(0, positions.shape[1], step):
                 keyframe_index = math.floor(i / step)
-                fcurve_rotation.keyframe_points[keyframe_index].interpolation = 'CONSTANT'
-                fcurve_rotation.keyframe_points[keyframe_index].co = round(times[i] * fps), angular_positions[index,i]
+                fcurve_rotation.keyframe_points[keyframe_index].interpolation = 'LINEAR'
+                fcurve_rotation.keyframe_points[keyframe_index].co = round(times[i] * fps), angular_positions[index, i]
         print("Done adding keyframes!")
 
         if (crash):
-            #bpy.ops.action.clean(channels=True)
+            # bpy.ops.action.clean(channels=True)
             bpy.ops.ptcache.free_bake_all()
             bpy.ops.ptcache.bake_all()
 
         # create a curve that shows the vehicle path
-        curveData = bpy.data.curves.new('myCurve', type='CURVE')
-        curveData.dimensions = '3D'
-        curveData.resolution_u = 2
-        polyline = curveData.splines.new('POLY')
-        polyline.points.add(positions.shape[1])
-        for i, location in enumerate(positions.T):
-            polyline.points[i].co = (*location,1)
-        curveOB = bpy.data.objects.new('myCurve', curveData)
-        curveData.bevel_depth = 0.01
-        # attach to scene and validate context
-        scene.objects.link(curveOB)
+        # curveData = bpy.data.curves.new('myCurve', type='CURVE')
+        # curveData.dimensions = '3D'
+        # curveData.resolution_u = 2
+        # polyline = curveData.splines.new('POLY')
+        # polyline.points.add(positions.shape[1])
+        # for i, location in enumerate(positions.T):
+        #     polyline.points[i].co = (*location,1)
+        # curveOB = bpy.data.objects.new('myCurve', curveData)
+        # curveData.bevel_depth = 0.01
+        # # attach to scene and validate context
+        # scene.objects.link(curveOB)
 
         return {'FINISHED'}
 
@@ -202,7 +257,7 @@ def register():
     bpy.utils.register_class(AutoUpdatePreferences)
     bootstrap.install_dependencies()
     bpy.utils.register_class(LoadDataset)
-    bpy.utils.register_class(AnimateObject)
+    bpy.utils.register_class(ReconstructDynamics)
     bpy.utils.register_class(InertialBlenderPanel)
     print("Done!")
 
@@ -214,7 +269,7 @@ def unregister():
     # commented out because it was a boggy solution and numpy is lightweight
     #bootstrap.uninstall_packages_from_requirements_file()
     bpy.utils.unregister_class(LoadDataset)
-    bpy.utils.unregister_class(AnimateObject)
+    bpy.utils.unregister_class(ReconstructDynamics)
     bpy.utils.unregister_class(InertialBlenderPanel)
 
 

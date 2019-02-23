@@ -31,6 +31,7 @@ if __name__ == "__main__":
     blender_utils_full_path = os.path.join(my_path,"blender")
     init_full_path = os.path.join(my_path, "__init__.py")
     requirements_full_path = os.path.join(my_path, "production_requirements.py")
+    car_full_path = os.path.join(my_path, "camaro_for_link.blend")
     addon_updater_ops_path = os.path.join(my_path, "my_addon_updater_ops.py")
     new_src = os.path.join(path, "src")
     new_blender_utils = os.path.join(path,"blender")
@@ -44,6 +45,7 @@ if __name__ == "__main__":
     shutil.copy(addon_updater_ops_path, addon_updater_ops_new_path)
     shutil.copy(addon_updater_path, path)
     shutil.copy(requirements_full_path, path)
+    shutil.copy(car_full_path,path)
     # final path of zip file
     zip_path = os.path.join(my_path, "blender_inertial.zip")
     # crete zip file object

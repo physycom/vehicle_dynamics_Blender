@@ -109,7 +109,7 @@ def truncate_if_crash(crash, times, gps_speed, accelerations, angular_velocities
     :param heading: 1xn numpy array
     :return:times, gps_speed, accelerations, angular_velocities, coordinates, [coordinates, heading]
     """
-    if (crash):
+    if crash:
         crashes = np.argwhere(np.linalg.norm(accelerations, axis=0) > crash_acceleration_treshold)
         if (len(crashes) > 1):
             crash_1 = crashes[0][0]
@@ -117,9 +117,9 @@ def truncate_if_crash(crash, times, gps_speed, accelerations, angular_velocities
             angular_velocities = angular_velocities[:, :crash_1]
             gps_speed = gps_speed[:crash_1]
             times = times[:crash_1]
-            if coordinates:
+            if coordinates is not None:
                 coordinates = coordinates[:,:crash_1]
-            if heading:
+            if heading is not None:
                 heading = heading[:crash_1]
     return times, gps_speed, accelerations, angular_velocities, coordinates, heading
 
