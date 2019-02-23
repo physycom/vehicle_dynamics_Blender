@@ -234,18 +234,19 @@ class ReconstructDynamics(bpy.types.Operator):
             bpy.ops.ptcache.free_bake_all()
             bpy.ops.ptcache.bake_all()
 
-        # create a curve that shows the vehicle path
-        # curveData = bpy.data.curves.new('myCurve', type='CURVE')
-        # curveData.dimensions = '3D'
-        # curveData.resolution_u = 2
-        # polyline = curveData.splines.new('POLY')
-        # polyline.points.add(positions.shape[1])
-        # for i, location in enumerate(positions.T):
-        #     polyline.points[i].co = (*location,1)
-        # curveOB = bpy.data.objects.new('myCurve', curveData)
-        # curveData.bevel_depth = 0.01
-        # # attach to scene and validate context
-        # scene.objects.link(curveOB)
+        #create a curve that shows the vehicle path
+        curveData = bpy.data.curves.new('myCurve', type='CURVE')
+        curveData.dimensions = '3D'
+        curveData.resolution_u = 2
+        polyline = curveData.splines.new('POLY')
+        # -1 for avoinding closing curve
+        polyline.points.add(positions.shape[1]-1)
+        for i, location in enumerate(positions.T):
+             # set x,y,z,weight
+             polyline.points[i].co = (*location,1)
+        curveOB = bpy.data.objects.new('myCurve', curveData)
+        #attach curve to scene
+        scene.objects.link(curveOB)
 
         return {'FINISHED'}
 
