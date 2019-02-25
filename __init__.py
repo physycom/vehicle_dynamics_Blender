@@ -207,6 +207,9 @@ class ReconstructDynamics(bpy.types.Operator):
 
         if ignore_z:
             location_channels = [0,1]
+            positions[2] = 0
+            # set ground start vertical position
+            obj.location.z = 0
             rotation_channels = [2]
         else:
             location_channels = rotation_channels = range(3)
