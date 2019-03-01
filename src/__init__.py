@@ -42,8 +42,6 @@ def get_trajectory_from_path(path,use_gps=True,crash=False):
     :return: 3 numpy array: 3xn position, 1xn times, 4xn angular position as quaternions
     """
 
-    window_size = 20
-
     if (use_gps):
         print("using GPS")
         # currently default format is unmodified fullinertial but other formats are / will be supported
@@ -54,11 +52,13 @@ def get_trajectory_from_path(path,use_gps=True,crash=False):
 
         converts_measurement_units(accelerations, angular_velocities, gps_speed, coordinates, heading)
 
-        times, gps_speed, accelerations, angular_velocities, coordinates, heading = \
+        times, gps_speed, accelerations, angular_velocities, coordinates, heading, crash_time = \
             truncate_if_crash(crash, times, gps_speed, accelerations, angular_velocities, coordinates, heading)
 
         # get positions from GNSS data
         gnss_positions, headings_2 = get_positions(coordinates, altitudes)
+
+        window_size = 20
 
         # reduce accelerations disturbance
         times, accelerations = reduce_disturbance(times, accelerations, window_size)
@@ -73,7 +73,7 @@ def get_trajectory_from_path(path,use_gps=True,crash=False):
         real_speeds = np.linalg.norm(real_velocities, axis=0)
 
         # get time windows where vehicle is stationary
-        stationary_times = get_stationary_times(gps_speed,period)
+        stationary_times = get_stationary_times(gps_speed,period,crash_time)
 
         # clear gyroscope drift
         angular_velocities = clear_gyro_drift(angular_velocities, stationary_times)
@@ -119,16 +119,16 @@ def get_trajectory_from_path(path,use_gps=True,crash=False):
 
         converts_measurement_units(accelerations, angular_velocities, gps_speed)
 
-        times, gps_speed, accelerations, angular_velocities, _, _ = \
+        times, gps_speed, accelerations, angular_velocities, _, _ , crash_time = \
             truncate_if_crash(crash, times, gps_speed, accelerations, angular_velocities)
 
         # reduce accelerations disturbance
-        times, accelerations = reduce_disturbance(times, accelerations, window_size)
+        times, accelerations = reduce_disturbance(times, accelerations)
         # reduce angular velocities disturbance
-        _, angular_velocities = reduce_disturbance(times, angular_velocities, window_size)
+        _, angular_velocities = reduce_disturbance(times, angular_velocities)
 
         # get time windows where vehicle is stationary
-        stationary_times = get_stationary_times(gps_speed,period)
+        stationary_times = get_stationary_times(gps_speed, period, crash_time)
 
         # clear gyroscope drift
         angular_velocities = clear_gyro_drift(angular_velocities, stationary_times)

@@ -51,7 +51,7 @@ def parse_input(df):
     gps_speed = df['speed'].values.T
     return times, gps_speed, accelerations, angular_velocities
 
-def get_stationary_times(gps_speed,period):
+def get_stationary_times(gps_speed, period, crash_time=None):
     """ Returns list of index where the gps speed is near zero
 
     :param gps_speed: 1xn numpy array of gps speed in m/s
@@ -59,6 +59,10 @@ def get_stationary_times(gps_speed,period):
     """
 
     speed_threshold = 0.05  # 0.2 m/s
+    if crash_time is not None:
+        # truncate speeds after crash time because acceleremeter data is unreliable
+        # so the routines that use stationary_time don't work on data after crash
+        gps_speed = gps_speed[:crash_time]
     stationary_times = []
     # repeat until at least a stationary time is found
     while (len(stationary_times)==0):
@@ -99,6 +103,7 @@ def truncate_if_crash(crash, times, gps_speed, accelerations, angular_velocities
     Removed unreliable data after a crash
     If crash==True then search for a acceleration over a certain treshold, remove records after that
     Coordinates and heading are optional, for supporting both using gps data and not.
+    Returning also first crash time if present. If not present crash time is null
 
     :param crash: bool
     :param times: 1xn numpy array
@@ -107,12 +112,13 @@ def truncate_if_crash(crash, times, gps_speed, accelerations, angular_velocities
     :param angular_velocities: 3xn numpy array
     :param coordinates: 2xn numpy array
     :param heading: 1xn numpy array
-    :return:times, gps_speed, accelerations, angular_velocities, coordinates, [coordinates, heading]
+    :return:times, gps_speed, accelerations, angular_velocities, coordinates, [coordinates, heading, crash_time]
     """
-    if crash:
-        crashes = np.argwhere(np.linalg.norm(accelerations, axis=0) > crash_acceleration_treshold)
-        if (len(crashes) > 1):
-            crash_1 = crashes[0][0]
+    crashes = np.argwhere(np.linalg.norm(accelerations, axis=0) > crash_acceleration_treshold)
+    crash_1 = None
+    if (len(crashes) > 1):
+        crash_1 = crashes[0][0]
+        if crash:
             accelerations = accelerations[:, :crash_1]
             angular_velocities = angular_velocities[:, :crash_1]
             gps_speed = gps_speed[:crash_1]
@@ -121,7 +127,7 @@ def truncate_if_crash(crash, times, gps_speed, accelerations, angular_velocities
                 coordinates = coordinates[:,:crash_1]
             if heading is not None:
                 heading = heading[:crash_1]
-    return times, gps_speed, accelerations, angular_velocities, coordinates, heading
+    return times, gps_speed, accelerations, angular_velocities, coordinates, heading, crash_1
 
 def converts_measurement_units(accelerations, angular_velocities, gps_speed=None, coordinates=None, heading=None):
     """ Convert physics quantity measurement unit

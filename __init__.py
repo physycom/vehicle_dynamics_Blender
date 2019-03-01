@@ -30,7 +30,7 @@ bpy.types.Scene.datasetPath = StringProperty(
 bpy.types.Scene.use_gps = BoolProperty(
     name="Use GPS Data",
     description="Use GPS data",
-    default = True)
+    default = False)
 
 bpy.types.Scene.crash = BoolProperty(
     name="Reconstruct crash",
@@ -128,8 +128,6 @@ class ReconstructDynamics(bpy.types.Operator):
             # make car object in first scene local so when the object in the second scene will be deleted
             # this object will not be
             obj = scene.objects['Camaro'].make_local()
-            # set the car object as the active object in the first scene
-            scene.objects.active = obj
             # for each material slot in the car object
             for material_slot in obj.material_slots:
                 # set to not use nodes for material, so the car is not grey
@@ -141,6 +139,8 @@ class ReconstructDynamics(bpy.types.Operator):
             bpy.data.scenes.remove(scene2, True)
         # get car object from scene
         obj = scene.objects['Camaro']
+        # set the car object as the active object in the first scene
+        scene.objects.active = obj
         # get from checkbox if using gps data to reconstruct
         use_gps = scene.use_gps
         # get from checkbox if using crash mode
@@ -174,7 +174,7 @@ class ReconstructDynamics(bpy.types.Operator):
             step = 1
         # number of keyframes that will be inserted
         n_keyframe = math.ceil(positions.shape[1] / step)
-
+        scene.frame_start = 0
         if not crash:
             scene.frame_end = round(times[-1] * fps)
         else:
@@ -198,7 +198,10 @@ class ReconstructDynamics(bpy.types.Operator):
             fcurve_kinematic = obj.animation_data.action.fcurves.new(data_path="rigid_body.kinematic")
             fcurve_kinematic.keyframe_points.add(3)
             fcurve_kinematic.keyframe_points[0].co = 0, True
-            obj.location = positions[:, -1]
+            obj.location.x = positions[0,-1]
+            obj.location.y = positions[1,-1]
+            if ignore_z:
+                obj.location.z = 0.55
             # set keyframe at the end using physics engine
             fcurve_kinematic.keyframe_points[1].co = round((times[-1] * fps) - 10), True
             fcurve_kinematic.keyframe_points[2].co = round(times[-1] * fps), False
@@ -237,12 +240,12 @@ class ReconstructDynamics(bpy.types.Operator):
             bpy.ops.ptcache.free_bake_all()
             bpy.ops.ptcache.bake_all()
 
-        #create a curve that shows the vehicle path
+        # create a curve that shows the vehicle path
         curveData = bpy.data.curves.new('myCurve', type='CURVE')
         curveData.dimensions = '3D'
         curveData.resolution_u = 2
         polyline = curveData.splines.new('POLY')
-        # -1 for avoinding closing curve
+        # -1 for avoiding closing curve
         polyline.points.add(positions.shape[1]-1)
         for i, location in enumerate(positions.T):
              # set x,y,z,weight
